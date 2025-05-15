@@ -1,1 +1,3 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/GhwTNp6x)
+# This branch is for initial research that we will be doing for our fianl project proposal.
+
+More info here - [Github Projects](https://github.com/orgs/ACM40960/projects/1)
