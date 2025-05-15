@@ -57,4 +57,6 @@ This one does a modeling and feature selections based on BIC and error analysis 
 https://researchonline.lshtm.ac.uk/4664035/1/epidimiological%20vs%20meterological%20forecasts%20and%20risk%20assesments.pdf
 This one relates weather changing patterns to epidemiological forecasting, an interesting take.
 
+https://royalsocietypublishing.org/doi/10.1098/rsta.2021.0305 - This uses SIR model that we did for Uncertainty Quantification so we are somewhat familiar with the working and we can emulate these or maybe create one of our own SIR model.
+
 **Note** -- The data need to be good and let us see if we can take data from vilrology department of UCD to ease our work onn data collection.
