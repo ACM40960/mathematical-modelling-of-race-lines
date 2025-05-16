@@ -19,12 +19,15 @@ results - smartereveryday channel's video on prince Rupert's drop
 **Resources and Research Available**
 
 1. https://arxiv.org/pdf/2204.03382v6#:~:text=clip,and refers to  a Vision Language Retrieval Model.
+
+![alt text](assets/HunYuan_tvr_Model.png)
+
 2. https://www.amazon.science/publications/audio-enhanced-text-to-video-retrieval-using-text-conditioned-feature-alignment#:~:text=separately,conditioned%20audio%20representation Combining both textual and audio fusion to generate a complete understanding of a scene.
+
+![alt text](./assets/CurrentAmazonModel.png)
+
+
 3. https://openreview.net/forum?id=elDjJp4Upl&noteId=elDjJp4Upl - AVHash is a tri-level Transformer-based architecture designed to generate compact binary representations (hash codes) of videos by jointly modeling their audio and visual content.
-
-**Current Process at Amazon**
-
-![alt text](./assets/image.png)
 
 
 **Goal**
