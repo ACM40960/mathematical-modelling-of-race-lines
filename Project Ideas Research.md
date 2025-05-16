@@ -86,3 +86,9 @@ This one relates weather changing patterns to epidemiological forecasting, an in
 https://royalsocietypublishing.org/doi/10.1098/rsta.2021.0305 - This uses SIR model that we did for Uncertainty Quantification so we are somewhat familiar with the working and we can emulate these or maybe create one of our own SIR model.
 
 **Note** -- The data need to be good and let us see if we can take data from vilrology department of UCD to ease our work onn data collection.
+
+## 4. Mathematical Modelling of Optimized Paths in a Race Track
+
+The race line is often dependent on several factors like track temperatures, friction, tyre - type (medium), Torque etc.
+
+Use these various factors in math modeling to create an optimized race line.
