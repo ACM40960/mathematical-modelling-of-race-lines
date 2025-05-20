@@ -106,16 +106,14 @@ be used as input for lap time simulations, allowing real driving lines to be eva
 This paper addresses the challenge of selecting optimal racing lines, a key factor in high-level car racing that is typically guided by driver intuition. It explores four methods—Euler spiral, artificial intelligence, nonlinear programming, and an integrated approach—to compute optimal paths based on track geometry and vehicle dynamics. The AI method is highlighted for its effectiveness on both 2D and 3D tracks. Each method is evaluated for speed, accuracy, and practicality, with visualization tools developed to aid analysis. The findings have broader applications in sports like cycling, ice skating, and skiing.
 
 3. **https://www.tandfonline.com/doi/full/10.1080/00423110903514236**
-
 A numerical method for the time-optimal control of the race car is presented. The method is then used to perform the role of the driver in numerical simulations of manoeuvres at the limit of race car performance. The method does not attempt to model the driver but rather replaces the driver with methods normally associated with numerical optimal control. The method simultaneously finds the optimal driven line and the driver control inputs (steer, throttle and brake) to drive this line in minimum time. In principle, the method is capable of operation with arbitrarily complex vehicle models as it requires only limited access to the vehicle model state vector. It also requires solution of the differential equation representing the vehicle model in only the forward time direction and is hence capable of simulating the full vehicle transient response.
 
 
 4. **https://www.sciencedirect.com/science/article/abs/pii/S0045794908000163** - 
 This paper focuses on minimizing lap time by finding the optimal racing trajectory that balances shortest distance and highest possible speed. It treats trajectory planning as a bounded optimization problem influenced by both track geometry and vehicle dynamics. A simplified vehicle model is used to account for speed-dependent acceleration, deceleration, and lateral forces. Once the optimal trajectory and speed profile are found, driver inputs are modeled as control actions to follow the path, though dynamic feedback between driver and vehicle is not considered.
 
-
-5. 3. **https://etheses.whiterose.ac.uk/id/eprint/32528/1/Lambert_ED_Transport_PhD_2023.pdf** - 
-This thesis tackles large-scale, conflict-free path planning for autonomous vehicles in warehouse environments shared with humans. It breaks down the problem into shortest-path planning, local obstacle avoidance using clothoid curves, and zone-based intersection management. A novel approximation method and messaging interface ensure smooth coordination across zones. Simulations showed effective performance, especially with added boundary constraints that enabled seamless vehicle transitions across intersections without backups.
+5. **https://etheses.whiterose.ac.uk/id/eprint/32528/1/Lambert_ED_Transport_PhD_2023.pdf** - 
+This thesis tackles large-scale, conflict-free path planning for autonomous vehicles in warehouse environments shared with humans. It breaks down the problem into shortest-path planning, local obstacle avoidance using clothoid curves, and zone-based intersection management. A novel approximation method and messaging interface ensure smooth coordination across zones. Simulations showed effective performance, especially with added boundary constraints that enabled seamless vehicle transitions across intersections without backups.\
 
 
 
