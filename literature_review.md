@@ -29,6 +29,11 @@ Through this project we aspire to model car dynamics using math modelling using 
 1. [Optimal Control for a Formula One Car with
  Variable Parameters](https://ora.ox.ac.uk/objects/uuid%3Ace1a7106-0a2c-41af-8449-41541220809f/files/m776aa23411ad9d78c36f96620a0e0f0b)
 
-2. [A sequential two-step algorithm for fast generation of vehicle racing trajectories](https://ddl.stanford.edu/sites/g/files/sbiybj25996/files/media/file/2015_dscc_kapania_sequential_2step_0.pdf)
+- this paper basically represents the basics of all the ODEs to represent factors.
+
+2. [A sequential two-step algorithm for fast generation of vehicle racing trajectories](https://ddl.stanford.edu/sites/g/files/sbiybj25996/files/media/file/
+2015_dscc_kapania_sequential_2step_0.pdf)
+
+- this paper is basically an enhancement that basically doesn't calculate the whole track with speed, but splits the process. Creates an optimal track without the speed, and then adds the driver inputs (acceleration/breaks etc)
 
 3. [Computing the Race Line using Bayesian Optimization](https://arxiv.org/abs/2002.04794)
