@@ -1,0 +1,64 @@
+---
+title: "Literature Review: Optimal Race Line Modelling"
+author: "Joel Thomas Chacko & Sarosh Farhan"
+format:
+  html:
+    report: true
+    fontsize: 1.2em
+    toc: true
+    toc-title: '**Contents**'
+    css: styles-literature-review.css
+    embed-resources: true
+    grid:
+      body-width: 800px
+  revealjs: 
+    slide-number: true
+    html-math-method: mathjax
+    theme: serif
+execute: 
+  eval: true
+  echo: false
+  warning: false
+  message: false
+---
+
+## Introduction
+
+Through the course of this project we attempt to understand the impact of different forces on a race car, modelled by a system of equations and thereby we attempt to create an optimal race line for a user drawn race track or predefined F1 race tracks.
+
+## Problem Statement
+
+Racing team benefit greatly in understand the dynamic variables of the race-track like the temperature, friction, slope and many more, additionally also the dynamic variables of the car like the torque, accleration etc. These variables greatly affect the driver's racing line which ensures that the driver completes the lap in the shortest time possible. Therefore, through the course of this project we attempt to model these variables to simulate a optimal race line.
+
+
+## Literature Review
+
+We attempt to solve the problem of minimum-lap-time and optimal control for a Formula One race car is solved using direct transcription and nonlinear programming<sup>\[1\]</sup>. The objective is to compute an optimal trajectory, control inputs and setup parameters that together yield the fastest lap, while considering the physical and the dynamic constraints of the car and the track, considering dynamic quantities like friction, temperature etc. This enables the optimization of the racing line, driver controls and the car-specific variables like aerodynamic balance, and suspension stiffness.
+
+Unlike traditional solutions of the race trajectory problem in the form of combined optimal control formulations—where speed, path, and vehicle dynamics are optimized together in computationally demanding nonlinear programming—we adopt a sequential approach<sup>\[2\]</sup> drawing on Kapania et al. The two-stage methodology divides path planning from speed profiling and allows us to calculate dynamically viable racing lines at a fraction of the computational expense.
+
+The first step is to generate a smooth geometric path with least curvature within track boundaries. The second step overimposes a physically correct speed profile along the path, computed using forward-backward integration, constrained to tire friction and acceleration limits of the vehicle. The system enables rapid iteration, flexibility to different tracks, and potential use in real-time autonomous racing solutions or user-interactive simulation software.
+
+
+### Scope of Improvement
+
+
+## Methodology for the Project
+
+### System Design
+
+![System Design](assets/system-design.png){fig-align = "center" width="250px"}
+
+### Application Wireframe
+
+// insert the UI diagrams that were designed.
+
+## Outcomes and Constraints(Benefits and Limitations)
+
+
+
+## Conclusion
+
+
+
+## References 
