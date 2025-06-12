@@ -17,6 +17,7 @@ format:
     slide-number: false
     html-math-method: mathjax
     theme: serif
+
 execute: 
   eval: true
   echo: false
@@ -25,7 +26,7 @@ execute:
 bibliography: references.bib
 ---
 
-![](assets/top%20banner_white.jpg){fig-align="center"}
+![](assets/logo.png){fig-align="center"}
 
 ## Introduction
 
