@@ -54,6 +54,8 @@ We aim to implement the sequential two-step algorithm for fast generation of veh
 
 ![System Design](assets/system-design.png){fig-align="center" width="80%"}
 
+The users draw the custom race line and configure the meta-data of the vehicle and track, and run the simulation. In the background, the physics simulation engine models the optimal track around the user provided meta-data. The simulation is displayed on the screen.
+
 ### Application low-fidelity wireframes of user-flow at frontend (tentative, might change as we progress and find design roadblocks)
 
 ![Home Screen](assets/Screen1.jpg){fig-align="center" width="80%"}
