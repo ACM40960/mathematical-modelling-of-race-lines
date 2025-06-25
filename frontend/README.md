@@ -1,36 +1,105 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# F1 Racing Lines - Next.js + React + Tailwind CSS
+
+This project is a modern web application for drawing, analyzing, and visualizing racing lines on F1 tracks. It is built with Next.js, React, and Tailwind CSS, and features an interactive canvas for drawing tracks, a control panel for track parameters, and a modular, extensible architecture.
+
+## Features
+- **Interactive Canvas:** Draw racing lines with your mouse or pen. The app computes and displays the track boundaries based on a user-defined width.
+- **Track Control Panel:** Adjust track width, discretization step, and (future) see curvature profiles and other analytics.
+- **Responsive Layout:** Clean, modern UI with a header, main canvas area, and a control panel.
+- **Fully Commented Code:** All components are well-documented for easy onboarding and collaboration.
+
+---
+
+## Prerequisites
+- **Node.js** (v18 or higher recommended)
+- **npm** (v8 or higher)
+
+---
 
 ## Getting Started
 
-First, run the development server:
-
+### 1. Clone the Repository
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone <your-repo-url>
+cd project-maths-modelling-project-sarosh-farhan/frontend
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Install Dependencies
+```bash
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Run the Development Server
+```bash
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Open [http://localhost:3000](http://localhost:3000) in your browser to see the app.
+- The app will automatically reload as you edit files.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+frontend/
+├── public/                # Static assets (e.g., F1 logo)
+├── src/
+│   ├── app/               # Next.js app directory (pages, layout, globals)
+│   ├── components/        # Reusable React components
+│   │   ├── CanvasDraw.tsx # Main drawing canvas (core logic)
+│   │   └── TrackControl.tsx # Track control panel (inputs, analytics)
+│   └── ...
+├── package.json           # Project metadata and scripts
+├── tailwind.config.js     # Tailwind CSS configuration
+├── postcss.config.mjs     # PostCSS configuration
+├── tsconfig.json          # TypeScript configuration
+└── README.md              # This file
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## How It Works
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **CanvasDraw.tsx:**
+  - Lets users draw a racing line with the mouse.
+  - Computes and displays the track boundaries (ribbon) using a normal vector method.
+  - The width of the track can be adjusted live from the control panel.
+  - All code is commented for clarity and future extension.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **TrackControl.tsx:**
+  - Lets users set the track width, discretization step, and (future) track length.
+  - Will display analytics like curvature profile in future versions.
+
+- **State Management:**
+  - The main page (`src/app/page.tsx`) holds the shared state for the drawn lines and track width, passing them as props to the relevant components.
+
+---
+
+## Customization & Contribution
+
+- **To add new features:**
+  - Create new components in `src/components/` and import them in `src/app/page.tsx`.
+  - Follow the commenting style for clarity.
+- **To change the drawing logic:**
+  - Edit `CanvasDraw.tsx`. You can swap out the normal vector method for a more advanced offsetting library if needed.
+- **To style the app:**
+  - Use Tailwind CSS classes in your components, or update `tailwind.config.js` for custom themes.
+
+---
+
+## Troubleshooting
+- If you see errors about Node.js version, upgrade to the latest LTS version.
+- If the canvas does not resize or boundaries look odd, try drawing longer, smoother lines and adjust the track width.
+- For advanced geometry (e.g., robust offsetting), consider integrating a library like [paper.js](http://paperjs.org/).
+
+---
+
+## License
+This project is for educational and research purposes. See LICENSE file for details (if present).
+
+---
+
+## Contact & Credits
+- Created by Sarosh Farhan and contributors.
+- For questions, suggestions, or contributions, please open an issue or pull request.
