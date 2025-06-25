@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+header {
+  font-family: var(--font-montserrat);
+}
+
+body {
+  font-family: var(--font-montserrat);
+}
