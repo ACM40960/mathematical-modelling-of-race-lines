@@ -83,7 +83,7 @@ frontend/
 - **To change the drawing logic:**
   - Edit `CanvasDraw.tsx`. You can swap out the normal vector method for a more advanced offsetting library if needed.
 - **To style the app:**
-  - Use Tailwind CSS classes in your components, or update `tailwind.config.js` for custom themes.
+  - Use Tailwind CSS classes in your components.
 
 ---
 
@@ -100,5 +100,5 @@ This project is for educational and research purposes. See LICENSE file for deta
 ---
 
 ## Contact & Credits
-- Created by Sarosh Farhan and contributors.
+- Created by Sarosh Farhan and Joel Chacko.
 - For questions, suggestions, or contributions, please open an issue or pull request.
