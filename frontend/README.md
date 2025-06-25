@@ -51,7 +51,6 @@ frontend/
 │   │   └── TrackControl.tsx # Track control panel (inputs, analytics)
 │   └── ...
 ├── package.json           # Project metadata and scripts
-├── tailwind.config.js     # Tailwind CSS configuration
 ├── postcss.config.mjs     # PostCSS configuration
 ├── tsconfig.json          # TypeScript configuration
 └── README.md              # This file
