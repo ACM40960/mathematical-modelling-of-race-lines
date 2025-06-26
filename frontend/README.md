@@ -90,8 +90,6 @@ frontend/
 ## Troubleshooting
 - If you see errors about Node.js version, upgrade to the latest LTS version.
 - If the canvas does not resize or boundaries look odd, try drawing longer, smoother lines and adjust the track width.
-- For advanced geometry (e.g., robust offsetting), consider integrating a library like [paper.js](http://paperjs.org/).
-
 ---
 
 ## License
