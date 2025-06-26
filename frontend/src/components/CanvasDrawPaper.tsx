@@ -196,6 +196,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawProps> = ({
     });
     // Force paper.js to render
     paper.view.update();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lines, canvasSize, trackWidth]);
 
   // Drawing handlers with denoising
