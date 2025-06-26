@@ -29,11 +29,9 @@ interface CanvasDrawProps {
 }
 
 /**
- * CanvasDraw Component
- * Renders a canvas where users can draw with the mouse.
- * Captures and logs the coordinates and curves of the lines drawn.
- * Receives state and handlers from parent for shared access.
- * Draws a ribbon (track boundaries) using the normal vector method.
+ * CanvasDraw Component (Basic Version)
+ * Draws the user-drawn line and boundaries using the normal vector method.
+ * No smoothing or external libraries.
  */
 export default function CanvasDraw({
   lines,
