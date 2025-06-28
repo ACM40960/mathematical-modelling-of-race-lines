@@ -119,6 +119,145 @@ const CanvasDrawPaper: React.FC<CanvasDrawProps> = ({
     return length;
   }
 
+  // Helper: Check if a point is near a line segment
+  function isPointNearLineSegment(point: Point, start: Point, end: Point, threshold = 10): boolean {
+    const A = point.x - start.x;
+    const B = point.y - start.y;
+    const C = end.x - start.x;
+    const D = end.y - start.y;
+
+    const dot = A * C + B * D;
+    const lenSq = C * C + D * D;
+    let param = -1;
+
+    if (lenSq !== 0) param = dot / lenSq;
+
+    let xx, yy;
+
+    if (param < 0) {
+      xx = start.x;
+      yy = start.y;
+    } else if (param > 1) {
+      xx = end.x;
+      yy = end.y;
+    } else {
+      xx = start.x + param * C;
+      yy = start.y + param * D;
+    }
+
+    const dx = point.x - xx;
+    const dy = point.y - yy;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    return distance < threshold;
+  }
+
+  // Helper: Check if a point would create self-intersection in the current line
+  function wouldCreateSelfIntersection(point: Point, currentLine: Point[]): boolean {
+    if (currentLine.length < 3) return false;
+
+    // Only check against segments that are not immediately connected
+    // This allows for more natural curves while still preventing clear self-intersections
+    for (let i = 0; i < currentLine.length - 3; i++) {
+      if (isPointNearLineSegment(point, currentLine[i], currentLine[i + 1], 8)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  // Helper: Check if a point is near any existing line
+  function isPointNearExisting(point: Point, existingLines: Point[][], threshold = 10): boolean {
+    for (const line of existingLines) {
+      // Check distance to each point
+      for (const pt of line) {
+        const dist = Math.hypot(point.x - pt.x, point.y - pt.y);
+        if (dist < threshold) {
+          return true;
+        }
+      }
+
+      // Check distance to line segments
+      for (let i = 1; i < line.length; i++) {
+        if (isPointNearLineSegment(point, line[i-1], line[i], threshold)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  // Helper: Check if two line segments intersect
+  function doSegmentsIntersect(
+    a1: Point, a2: Point,
+    b1: Point, b2: Point,
+    threshold = 10,
+    isCheckingCurve = false
+  ): boolean {
+    // For curves, we use a more lenient threshold and only check actual intersections
+    if (isCheckingCurve) {
+      // Calculate the actual intersection
+      const denominator = ((b2.y - b1.y) * (a2.x - a1.x)) - ((b2.x - b1.x) * (a2.y - a1.y));
+      if (Math.abs(denominator) < 1e-8) return false; // Parallel lines are ok for curves
+
+      const ua = (((b2.x - b1.x) * (a1.y - b1.y)) - ((b2.y - b1.y) * (a1.x - b1.x))) / denominator;
+      const ub = (((a2.x - a1.x) * (a1.y - b1.y)) - ((a2.y - a1.y) * (a1.x - b1.x))) / denominator;
+
+      // Only return true for actual intersections
+      return (ua >= 0 && ua <= 1) && (ub >= 0 && ub <= 1);
+    }
+
+    // For non-curve checks (different lines), use the full proximity check
+    const minX = Math.min(a1.x, a2.x) - threshold;
+    const maxX = Math.max(a1.x, a2.x) + threshold;
+    const minY = Math.min(a1.y, a2.y) - threshold;
+    const maxY = Math.max(a1.y, a2.y) + threshold;
+
+    // Quick rejection test
+    if (Math.max(b1.x, b2.x) < minX || Math.min(b1.x, b2.x) > maxX ||
+        Math.max(b1.y, b2.y) < minY || Math.min(b1.y, b2.y) > maxY) {
+      return false;
+    }
+
+    // Calculate intersection
+    const denominator = ((b2.y - b1.y) * (a2.x - a1.x)) - ((b2.x - b1.x) * (a2.y - a1.y));
+    if (Math.abs(denominator) < 1e-8) {
+      // Lines are parallel, check if they overlap
+      const d = Math.abs((b2.x - b1.x) * (a1.y - b1.y) - (b2.y - b1.y) * (a1.x - b1.x)) /
+                Math.sqrt((b2.x - b1.x) * (b2.x - b1.x) + (b2.y - b1.y) * (b2.y - b1.y));
+      return d < threshold;
+    }
+
+    const ua = (((b2.x - b1.x) * (a1.y - b1.y)) - ((b2.y - b1.y) * (a1.x - b1.x))) / denominator;
+    const ub = (((a2.x - a1.x) * (a1.y - b1.y)) - ((a2.y - a1.y) * (a1.x - b1.x))) / denominator;
+
+    // Check if segments intersect or are very close
+    if ((ua >= 0 && ua <= 1) && (ub >= 0 && ub <= 1)) {
+      return true;
+    }
+
+    // Check endpoints
+    const distA1B1 = Math.hypot(a1.x - b1.x, a1.y - b1.y);
+    const distA1B2 = Math.hypot(a1.x - b2.x, a1.y - b2.y);
+    const distA2B1 = Math.hypot(a2.x - b1.x, a2.y - b1.y);
+    const distA2B2 = Math.hypot(a2.x - b2.x, a2.y - b2.y);
+
+    return Math.min(distA1B1, distA1B2, distA2B1, distA2B2) < threshold;
+  }
+
+  // Helper: Check if a line segment intersects with any existing line
+  function doesLineIntersectWithAny(start: Point, end: Point, lines: Point[][]): boolean {
+    for (const line of lines) {
+      for (let i = 1; i < line.length; i++) {
+        if (doSegmentsIntersect(start, end, line[i-1], line[i])) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   // Draw lines and boundaries using only paper.js
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -199,59 +338,98 @@ const CanvasDrawPaper: React.FC<CanvasDrawProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lines, canvasSize, trackWidth]);
 
-  // Drawing handlers with denoising
-  // Only add a new point if it's at least 3px from the last point
+  // Drawing handlers
   const handleMouseDown = (e: React.MouseEvent) => {
-    setDrawing(true);
     const rect = canvasRef.current!.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    // Start a new line with the initial point
-    setLines((prev) => [...prev, [{ x, y }]]);
+    const newPoint = { x, y };
+
+    // Check if the point would be too close to any existing line or point
+    if (isPointNearExisting(newPoint, lines)) {
+      return; // Don't allow starting a line here
+    }
+
+    setDrawing(true);
+    setLines((prev) => [...prev, [newPoint]]);
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!drawing) return;
+
     const rect = canvasRef.current!.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    const newPoint = { x, y };
+
     setLines((prev) => {
       const newLines = [...prev];
       const currentLine = newLines[newLines.length - 1];
-      // Only add the point if it's far enough from the last point
-      if (
-        currentLine.length === 0 ||
-        getDistance(currentLine[currentLine.length - 1], { x, y }) >= 3
-      ) {
-        newLines[newLines.length - 1] = [...currentLine, { x, y }];
+      
+      // If this is the first point or far enough from last point
+      if (currentLine.length === 0 || getDistance(currentLine[currentLine.length - 1], newPoint) >= 3) {
+        const lastPoint = currentLine.length > 0 ? currentLine[currentLine.length - 1] : newPoint;
+        
+        // Check intersection with other lines (strict check)
+        const otherLines = prev.slice(0, -1);
+        let intersectsOthers = false;
+        for (const line of otherLines) {
+          for (let i = 1; i < line.length; i++) {
+            if (doSegmentsIntersect(lastPoint, newPoint, line[i-1], line[i], 10, false)) {
+              intersectsOthers = true;
+              break;
+            }
+          }
+          if (intersectsOthers) break;
+        }
+
+        // More lenient self-intersection check for curves
+        let selfIntersects = false;
+        if (currentLine.length > 3) {
+          // Only check against non-adjacent segments
+          for (let i = 0; i < currentLine.length - 3; i++) {
+            if (doSegmentsIntersect(
+              lastPoint, newPoint,
+              currentLine[i], currentLine[i + 1],
+              10, true // Use curve-specific intersection check
+            )) {
+              selfIntersects = true;
+              break;
+            }
+          }
+        }
+
+        // Add point if no strict intersections with other lines
+        // and no actual self-intersections (allowing curves)
+        if (!intersectsOthers && !selfIntersects) {
+          newLines[newLines.length - 1] = [...currentLine, newPoint];
+        }
       }
       return newLines;
     });
   };
 
-  // On mouse up, filter out any remaining close points for a clean result
   const handleMouseUp = () => {
+    if (!drawing) return;
+    
     setDrawing(false);
+    
+    // Validate the final line
     setLines((prev) => {
-      if (prev.length === 0) return prev;
-      const newLines = [...prev];
-      // Filter the last drawn line to remove close points
-      newLines[newLines.length - 1] = filterClosePoints(
-        newLines[newLines.length - 1],
-        3 // threshold in pixels
-      );
-      // After filtering, compute the length of the last line and update track length
-      if (onTrackLengthChange) {
-        const lastLine = newLines[newLines.length - 1];
-        // --- SCALE: 1 pixel = 2 meters (500px = 1km) ---
-        const lengthPixels = getLineLength(lastLine);
-        const lengthKm = (lengthPixels * 2) / 1000; // Convert to km
-        onTrackLengthChange(Number(lengthKm.toFixed(3))); // Round to 3 decimals
+      const currentLine = prev[prev.length - 1];
+      // Remove lines that are too short
+      if (currentLine.length < 2) {
+        return prev.slice(0, -1);
       }
-      return newLines;
+      return prev;
     });
-    if (lines.length > 0) {
-      console.log("Line drawn:", lines[lines.length - 1]);
+
+    // Update track length if needed
+    if (onTrackLengthChange && lines.length > 0) {
+      const lastLine = lines[lines.length - 1];
+      const lengthPixels = getLineLength(lastLine);
+      const lengthKm = (lengthPixels * 2) / 1000;
+      onTrackLengthChange(Number(lengthKm.toFixed(3)));
     }
   };
 
