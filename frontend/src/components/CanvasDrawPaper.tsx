@@ -192,12 +192,28 @@ const CanvasDrawPaper: React.FC<CanvasDrawProps> = ({
   function doSegmentsIntersect(
     a1: Point, a2: Point,
     b1: Point, b2: Point,
+    // threshold essentially effects the permitted curvature between each point
     threshold = 10,
     isCheckingCurve = false
   ): boolean {
     // For curves, we use a more lenient threshold and only check actual intersections
+
+    // checks if the line segment being drawn intersects itself.
     if (isCheckingCurve) {
-      // Calculate the actual intersection
+      /*
+      
+      Essentially thinking of lines parametrically
+
+      a = a + u (a2 - a1); u = 0 to 1
+      boils down to 
+        ua(a2−a1)−ub(b2−b1)=b1−a1
+      
+      d = |(b2 - b1) × (a1 - b1)| / ||b2 - b1||; d = 0 to 1
+
+      standard distance between the lines measure with threshold
+
+      */
+      // Calculate the actual intersection - Cross Product Method => 0 for Parallel Lines
       const denominator = ((b2.y - b1.y) * (a2.x - a1.x)) - ((b2.x - b1.x) * (a2.y - a1.y));
       if (Math.abs(denominator) < 1e-8) return false; // Parallel lines are ok for curves
 
@@ -208,6 +224,9 @@ const CanvasDrawPaper: React.FC<CanvasDrawProps> = ({
       return (ua >= 0 && ua <= 1) && (ub >= 0 && ub <= 1);
     }
 
+    // Checking if the line segment intersects other lines.
+    // TODO: Might not be required, as the user essentially just draws one; no case for interesecting other already drawn lines.
+     
     // For non-curve checks (different lines), use the full proximity check
     const minX = Math.min(a1.x, a2.x) - threshold;
     const maxX = Math.max(a1.x, a2.x) + threshold;
