@@ -7,481 +7,536 @@ import React, {
   Dispatch,
   SetStateAction,
 } from "react";
-import paper from "paper/dist/paper-core";
+import { Point, Car } from "../types";
+import paper from 'paper';
 
-export interface Point {
-  x: number;
-  y: number;
-}
-
-interface CanvasDrawProps {
+interface CanvasDrawPaperProps {
   lines: Point[][];
   setLines: Dispatch<SetStateAction<Point[][]>>;
   handleClear: () => void;
   trackWidth: number;
   onTrackLengthChange?: (lengthKm: number) => void;
+  onTrackUpdate?: (trackPoints: Point[], curvature: number[], length: number) => void;
+  cars: Car[];
 }
 
 /**
  * CanvasDrawPaper Component
- * Uses paper.js for all drawing and smoothing.
- * Only loaded on the client (no SSR).
+ * A sophisticated drawing component that allows users to:
+ * 1. Draw race tracks using mouse/touch input
+ * 2. Automatically smooths the drawn lines using Catmull-Rom splines
+ * 3. Prevents self-intersections and maintains track integrity
+ * 4. Visualizes track width in real-time
+ * 5. Supports simulation of racing lines
+ * 
+ * Key Features:
+ * - Real-time drawing with mouse/touch
+ * - Line smoothing using Paper.js
+ * - Intersection detection to prevent invalid tracks
+ * - Track width visualization
+ * - Clear functionality to reset the canvas
+ * - Simulation trigger to calculate optimal racing lines
  */
-const CanvasDrawPaper: React.FC<CanvasDrawProps> = ({
+const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
   lines,
   setLines,
   handleClear,
   trackWidth,
   onTrackLengthChange,
+  onTrackUpdate,
+  cars
 }) => {
+  const [paperLoaded, setPaperLoaded] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [drawing, setDrawing] = useState(false);
-  const [canvasSize, setCanvasSize] = useState({ width: 300, height: 150 });
+  const currentPath = useRef<paper.Path | null>(null);
+  const innerPath = useRef<paper.Path | null>(null);
+  const outerPath = useRef<paper.Path | null>(null);
 
   useEffect(() => {
-    function updateSize() {
-      if (containerRef.current) {
-        setCanvasSize({
-          width: containerRef.current.offsetWidth,
-          height: containerRef.current.offsetHeight,
-        });
+    let mounted = true;
+
+    const initializePaper = async () => {
+      try {
+        if (!canvasRef.current) return;
+        
+        paper.setup(canvasRef.current);
+        setPaperLoaded(true);
+        initializePaperTool();
+      } catch (error) {
+        console.error('Failed to initialize Paper.js:', error);
       }
-    }
+    };
+
+    initializePaper();
+
+    return () => {
+      mounted = false;
+      if (paper.project) {
+        paper.project.clear();
+      }
+    };
+  }, []);
+
+  // Handle canvas resize
+  useEffect(() => {
+    const updateSize = () => {
+      if (canvasRef.current && paper.view) {
+        const newSize = {
+          width: canvasRef.current.offsetWidth,
+          height: canvasRef.current.offsetHeight,
+        };
+        paper.view.viewSize = new paper.Size(newSize.width, newSize.height);
+      }
+    };
+
     updateSize();
     window.addEventListener("resize", updateSize);
     return () => window.removeEventListener("resize", updateSize);
-  }, []);
+  }, [paperLoaded]); // Run when paper is loaded
 
-  // Helper: Compute normal vector for a segment
-  function getNormal(p1: Point, p2: Point): { x: number; y: number } {
+  // Helper function to compute normal vector
+  const getNormal = (p1: Point, p2: Point): { x: number; y: number } => {
     const dx = p2.x - p1.x;
     const dy = p2.y - p1.y;
     const len = Math.sqrt(dx * dx + dy * dy) || 1;
     return { x: -dy / len, y: dx / len };
-  }
-
-  // --- Pure helpers moved outside component for best practice and to avoid useEffect dependency warning ---
-
-  /**
-   * Check if a line is a loop (start and end points are close)
-   * @param line Array of points
-   * @param threshold Distance threshold in pixels
-   */
-  function isLoop(line: Point[], threshold = 10): boolean {
-    if (line.length < 3) return false;
-    const start = line[0];
-    const end = line[line.length - 1];
-    const dist = Math.hypot(end.x - start.x, end.y - start.y);
-    return dist < threshold;
-  }
-
-  /**
-   * Smooth a line using paper.js, handling open and closed paths
-   * @param line Array of points
-   * @returns paper.Path
-   */
-  function smoothLineWithPaper(line: Point[]): InstanceType<typeof paper.Path> {
-    const path = new paper.Path();
-    line.forEach((pt) => path.add(new paper.Point(pt.x, pt.y)));
-    // If the line is a loop, close the path for proper smoothing
-    if (isLoop(line)) {
-      path.closed = true;
-    }
-    // Smooth the path (Catmull-Rom for natural race lines)
-    path.smooth({ type: "catmull-rom", factor: 0.5 });
-    return path;
-  }
-
-  // Helper: Compute distance between two points
-  function getDistance(p1: Point, p2: Point): number {
-    return Math.hypot(p2.x - p1.x, p2.y - p1.y);
-  }
-
-  // Helper: Remove consecutive points that are too close (distance < threshold)
-  function filterClosePoints(line: Point[], threshold = 3): Point[] {
-    if (line.length === 0) return [];
-    const filtered: Point[] = [line[0]];
-    for (let i = 1; i < line.length; i++) {
-      if (getDistance(filtered[filtered.length - 1], line[i]) >= threshold) {
-        filtered.push(line[i]);
-      }
-    }
-    return filtered;
-  }
-
-  // Helper: Compute the total length of a polyline in pixels
-  function getLineLength(line: Point[]): number {
-    let length = 0;
-    for (let i = 1; i < line.length; i++) {
-      length += getDistance(line[i - 1], line[i]);
-    }
-    return length;
-  }
-
-  // Helper: Check if a point is near a line segment
-  function isPointNearLineSegment(point: Point, start: Point, end: Point, threshold = 10): boolean {
-    const A = point.x - start.x;
-    const B = point.y - start.y;
-    const C = end.x - start.x;
-    const D = end.y - start.y;
-
-    const dot = A * C + B * D;
-    const lenSq = C * C + D * D;
-    let param = -1;
-
-    if (lenSq !== 0) param = dot / lenSq;
-
-    let xx, yy;
-
-    if (param < 0) {
-      xx = start.x;
-      yy = start.y;
-    } else if (param > 1) {
-      xx = end.x;
-      yy = end.y;
-    } else {
-      xx = start.x + param * C;
-      yy = start.y + param * D;
-    }
-
-    const dx = point.x - xx;
-    const dy = point.y - yy;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-
-    return distance < threshold;
-  }
-
-  // Helper: Check if a point would create self-intersection in the current line
-  function wouldCreateSelfIntersection(point: Point, currentLine: Point[]): boolean {
-    if (currentLine.length < 3) return false;
-
-    // Only check against segments that are not immediately connected
-    // This allows for more natural curves while still preventing clear self-intersections
-    for (let i = 0; i < currentLine.length - 3; i++) {
-      if (isPointNearLineSegment(point, currentLine[i], currentLine[i + 1], 8)) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  // Helper: Check if a point is near any existing line
-  function isPointNearExisting(point: Point, existingLines: Point[][], threshold = 10): boolean {
-    for (const line of existingLines) {
-      // Check distance to each point
-      for (const pt of line) {
-        const dist = Math.hypot(point.x - pt.x, point.y - pt.y);
-        if (dist < threshold) {
-          return true;
-        }
-      }
-
-      // Check distance to line segments
-      for (let i = 1; i < line.length; i++) {
-        if (isPointNearLineSegment(point, line[i-1], line[i], threshold)) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  // Helper: Check if two line segments intersect
-  function doSegmentsIntersect(
-    a1: Point, a2: Point,
-    b1: Point, b2: Point,
-    // threshold essentially effects the permitted curvature between each point
-    threshold = 10,
-    isCheckingCurve = false
-  ): boolean {
-    // For curves, we use a more lenient threshold and only check actual intersections
-
-    // checks if the line segment being drawn intersects itself.
-    if (isCheckingCurve) {
-      /*
-      
-      Essentially thinking of lines parametrically
-
-      a = a + u (a2 - a1); u = 0 to 1
-      boils down to 
-        ua(a2−a1)−ub(b2−b1)=b1−a1
-      
-      d = |(b2 - b1) × (a1 - b1)| / ||b2 - b1||; d = 0 to 1
-
-      standard distance between the lines measure with threshold
-
-      */
-      // Calculate the actual intersection - Cross Product Method => 0 for Parallel Lines
-      const denominator = ((b2.y - b1.y) * (a2.x - a1.x)) - ((b2.x - b1.x) * (a2.y - a1.y));
-      if (Math.abs(denominator) < 1e-8) return false; // Parallel lines are ok for curves
-
-      const ua = (((b2.x - b1.x) * (a1.y - b1.y)) - ((b2.y - b1.y) * (a1.x - b1.x))) / denominator;
-      const ub = (((a2.x - a1.x) * (a1.y - b1.y)) - ((a2.y - a1.y) * (a1.x - b1.x))) / denominator;
-
-      // Only return true for actual intersections
-      return (ua >= 0 && ua <= 1) && (ub >= 0 && ub <= 1);
-    }
-
-    // Checking if the line segment intersects other lines.
-    // TODO: Might not be required, as the user essentially just draws one; no case for interesecting other already drawn lines.
-     
-    // For non-curve checks (different lines), use the full proximity check
-    const minX = Math.min(a1.x, a2.x) - threshold;
-    const maxX = Math.max(a1.x, a2.x) + threshold;
-    const minY = Math.min(a1.y, a2.y) - threshold;
-    const maxY = Math.max(a1.y, a2.y) + threshold;
-
-    // Quick rejection test
-    if (Math.max(b1.x, b2.x) < minX || Math.min(b1.x, b2.x) > maxX ||
-        Math.max(b1.y, b2.y) < minY || Math.min(b1.y, b2.y) > maxY) {
-      return false;
-    }
-
-    // Calculate intersection
-    const denominator = ((b2.y - b1.y) * (a2.x - a1.x)) - ((b2.x - b1.x) * (a2.y - a1.y));
-    if (Math.abs(denominator) < 1e-8) {
-      // Lines are parallel, check if they overlap
-      const d = Math.abs((b2.x - b1.x) * (a1.y - b1.y) - (b2.y - b1.y) * (a1.x - b1.x)) /
-                Math.sqrt((b2.x - b1.x) * (b2.x - b1.x) + (b2.y - b1.y) * (b2.y - b1.y));
-      return d < threshold;
-    }
-
-    const ua = (((b2.x - b1.x) * (a1.y - b1.y)) - ((b2.y - b1.y) * (a1.x - b1.x))) / denominator;
-    const ub = (((a2.x - a1.x) * (a1.y - b1.y)) - ((a2.y - a1.y) * (a1.x - b1.x))) / denominator;
-
-    // Check if segments intersect or are very close
-    if ((ua >= 0 && ua <= 1) && (ub >= 0 && ub <= 1)) {
-      return true;
-    }
-
-    // Check endpoints
-    const distA1B1 = Math.hypot(a1.x - b1.x, a1.y - b1.y);
-    const distA1B2 = Math.hypot(a1.x - b2.x, a1.y - b2.y);
-    const distA2B1 = Math.hypot(a2.x - b1.x, a2.y - b1.y);
-    const distA2B2 = Math.hypot(a2.x - b2.x, a2.y - b2.y);
-
-    return Math.min(distA1B1, distA1B2, distA2B1, distA2B2) < threshold;
-  }
-
-  // Helper: Check if a line segment intersects with any existing line
-  function doesLineIntersectWithAny(start: Point, end: Point, lines: Point[][]): boolean {
-    for (const line of lines) {
-      for (let i = 1; i < line.length; i++) {
-        if (doSegmentsIntersect(start, end, line[i-1], line[i])) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  // Draw lines and boundaries using only paper.js
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    paper.setup(canvas);
-    paper.project.activeLayer.removeChildren(); // Clear previous drawings
-
-    lines.forEach((line) => {
-      if (line.length < 2) return;
-      // 1. Smooth the center line for display
-      //    - If the line is a loop, the path is closed for proper smoothing
-      //    - If the line is open, the path is left open
-      const centerPath = smoothLineWithPaper(line);
-      centerPath.strokeColor = new paper.Color("#e11d48");
-      centerPath.strokeWidth = 3;
-      centerPath.strokeCap = "round";
-      centerPath.strokeJoin = "round";
-
-      // 2. Draw boundaries (ribbon) using the normal vector method
-      if (trackWidth > 0) {
-        const halfWidth = trackWidth / 2;
-        const leftPoints: InstanceType<typeof paper.Point>[] = [];
-        const rightPoints: InstanceType<typeof paper.Point>[] = [];
-        for (let i = 0; i < centerPath.segments.length - 1; i++) {
-          const p1 = centerPath.segments[i].point;
-          const p2 = centerPath.segments[i + 1].point;
-          const normal = getNormal({ x: p1.x, y: p1.y }, { x: p2.x, y: p2.y });
-          leftPoints.push(
-            new paper.Point(
-              p1.x + normal.x * halfWidth,
-              p1.y + normal.y * halfWidth
-            )
-          );
-          rightPoints.push(
-            new paper.Point(
-              p1.x - normal.x * halfWidth,
-              p1.y - normal.y * halfWidth
-            )
-          );
-        }
-        // Add last point
-        const last = centerPath.segments[centerPath.segments.length - 1].point;
-        const prev = centerPath.segments[centerPath.segments.length - 2].point;
-        const normal = getNormal(
-          { x: prev.x, y: prev.y },
-          { x: last.x, y: last.y }
-        );
-        leftPoints.push(
-          new paper.Point(
-            last.x + normal.x * halfWidth,
-            last.y + normal.y * halfWidth
-          )
-        );
-        rightPoints.push(
-          new paper.Point(
-            last.x - normal.x * halfWidth,
-            last.y - normal.y * halfWidth
-          )
-        );
-
-        // Draw left boundary
-        const leftPath = new paper.Path(leftPoints);
-        leftPath.strokeColor = new paper.Color("#2563eb");
-        leftPath.strokeWidth = 2;
-        leftPath.strokeCap = "round";
-        leftPath.strokeJoin = "round";
-
-        // Draw right boundary
-        const rightPath = new paper.Path(rightPoints);
-        rightPath.strokeColor = new paper.Color("#16a34a");
-        rightPath.strokeWidth = 2;
-        rightPath.strokeCap = "round";
-        rightPath.strokeJoin = "round";
-      }
-    });
-    // Force paper.js to render
-    paper.view.update();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lines, canvasSize, trackWidth]);
-
-  // Drawing handlers
-  const handleMouseDown = (e: React.MouseEvent) => {
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const newPoint = { x, y };
-
-    // Check if the point would be too close to any existing line or point
-    if (isPointNearExisting(newPoint, lines)) {
-      return; // Don't allow starting a line here
-    }
-
-    setDrawing(true);
-    setLines((prev) => [...prev, [newPoint]]);
   };
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!drawing) return;
-
-    const rect = canvasRef.current!.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const newPoint = { x, y };
-
-    setLines((prev) => {
-      const newLines = [...prev];
-      const currentLine = newLines[newLines.length - 1];
+  // Helper function to calculate uniform normals for a path
+  const calculateUniformNormals = (points: paper.Point[]): paper.Point[] => {
+    if (points.length < 2) return [];
+    
+    const normals: paper.Point[] = [];
+    
+    // Calculate normals for each point
+    for (let i = 0; i < points.length; i++) {
+      let normal: paper.Point;
       
-      // If this is the first point or far enough from last point
-      if (currentLine.length === 0 || getDistance(currentLine[currentLine.length - 1], newPoint) >= 3) {
-        const lastPoint = currentLine.length > 0 ? currentLine[currentLine.length - 1] : newPoint;
+      if (i === 0) {
+        // First point - use direction to next point
+        const curr = points[i];
+        const next = points[i + 1];
+        const dx = next.x - curr.x;
+        const dy = next.y - curr.y;
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        normal = new paper.Point(-dy / len, dx / len);
+      } else if (i === points.length - 1) {
+        // Last point - use direction from previous point
+        const curr = points[i];
+        const prev = points[i - 1];
+        const dx = curr.x - prev.x;
+        const dy = curr.y - prev.y;
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        normal = new paper.Point(-dy / len, dx / len);
+      } else {
+        // Middle points - use average of adjacent segments
+        const prev = points[i - 1];
+        const curr = points[i];
+        const next = points[i + 1];
         
-        // Check intersection with other lines (strict check)
-        const otherLines = prev.slice(0, -1);
-        let intersectsOthers = false;
-        for (const line of otherLines) {
-          for (let i = 1; i < line.length; i++) {
-            if (doSegmentsIntersect(lastPoint, newPoint, line[i-1], line[i], 10, false)) {
-              intersectsOthers = true;
-              break;
-            }
-          }
-          if (intersectsOthers) break;
-        }
-
-        // More lenient self-intersection check for curves
-        let selfIntersects = false;
-        if (currentLine.length > 3) {
-          // Only check against non-adjacent segments
-          for (let i = 0; i < currentLine.length - 3; i++) {
-            if (doSegmentsIntersect(
-              lastPoint, newPoint,
-              currentLine[i], currentLine[i + 1],
-              10, true // Use curve-specific intersection check
-            )) {
-              selfIntersects = true;
-              break;
-            }
-          }
-        }
-
-        // Add point if no strict intersections with other lines
-        // and no actual self-intersections (allowing curves)
-        if (!intersectsOthers && !selfIntersects) {
-          newLines[newLines.length - 1] = [...currentLine, newPoint];
-        }
+        // Calculate vectors of adjacent segments
+        const v1 = new paper.Point(curr.x - prev.x, curr.y - prev.y);
+        const v2 = new paper.Point(next.x - curr.x, next.y - curr.y);
+        
+        // Normalize vectors
+        v1.length = 1;
+        v2.length = 1;
+        
+        // Calculate average vector
+        normal = new paper.Point(
+          (-v1.y - v2.y) / 2,
+          (v1.x + v2.x) / 2
+        );
+        
+        // Ensure normal is unit length
+        normal.length = 1;
       }
-      return newLines;
+      
+      normals.push(normal);
+    }
+    
+    return normals;
+  };
+
+  // Helper function to draw track with boundaries
+  const drawTrackWithBoundaries = (points: Point[], isPreview = false, clearExisting = false) => {
+    if (!paper || points.length < 2) return;
+
+    if (clearExisting && paper.project) {
+      paper.project.activeLayer.removeChildren();
+    }
+
+    // Convert points to Paper.js points
+    const paperPoints = points.map(p => new paper.Point(p.x, p.y));
+    
+    // Calculate uniform normals
+    const normals = calculateUniformNormals(paperPoints);
+    const halfWidth = trackWidth / 2;
+
+    // Create boundary points
+    const leftPoints = paperPoints.map((p, i) => 
+      new paper.Point(p.x + normals[i].x * halfWidth, p.y + normals[i].y * halfWidth)
+    );
+    const rightPoints = paperPoints.map((p, i) => 
+      new paper.Point(p.x - normals[i].x * halfWidth, p.y - normals[i].y * halfWidth)
+    );
+
+    // Draw center line
+    const centerPath = new paper.Path({
+      segments: paperPoints,
+      strokeColor: new paper.Color("#e11d48"), // Red center line
+      strokeWidth: 3,
+      strokeCap: 'round',
+      strokeJoin: 'round'
+    });
+
+    // Draw boundaries
+    const leftPath = new paper.Path({
+      segments: leftPoints,
+      strokeColor: new paper.Color("#2563eb"), // Blue left boundary
+      strokeWidth: 2,
+      strokeCap: 'round',
+      strokeJoin: 'round'
+    });
+
+    const rightPath = new paper.Path({
+      segments: rightPoints,
+      strokeColor: new paper.Color("#16a34a"), // Green right boundary
+      strokeWidth: 2,
+      strokeCap: 'round',
+      strokeJoin: 'round'
+    });
+
+    if (!isPreview) {
+      centerPath.smooth();
+      leftPath.smooth();
+      rightPath.smooth();
+    }
+
+    // Draw start point indicator (green circle with 'S')
+    const startPoint = points[0];
+    const startCircle = new paper.Path.Circle(
+      new paper.Point(startPoint.x, startPoint.y),
+      15
+    );
+    startCircle.fillColor = new paper.Color("#22c55e"); // Lighter green
+    
+    // Add 'S' text
+    const startText = new paper.PointText({
+      point: new paper.Point(startPoint.x - 5, startPoint.y + 5),
+      content: 'S',
+      fillColor: 'white',
+      fontFamily: 'Arial',
+      fontWeight: 'bold',
+      fontSize: 14
+    });
+
+    // Draw end point indicator (red circle with 'F' for Finish)
+    const endPoint = points[points.length - 1];
+    const endCircle = new paper.Path.Circle(
+      new paper.Point(endPoint.x, endPoint.y),
+      15
+    );
+    endCircle.fillColor = new paper.Color("#ef4444"); // Lighter red
+
+    // Add 'F' text
+    const endText = new paper.PointText({
+      point: new paper.Point(endPoint.x - 5, endPoint.y + 5),
+      content: 'F',
+      fillColor: 'white',
+      fontFamily: 'Arial',
+      fontWeight: 'bold',
+      fontSize: 14
+    });
+
+    // Draw direction arrow near the start
+    if (points.length > 1) {
+      const arrowStart = points[0];
+      const arrowEnd = points[1];
+      const arrowLength = 30;
+      const arrowAngle = Math.atan2(arrowEnd.y - arrowStart.y, arrowEnd.x - arrowStart.x);
+      
+      const arrowPath = new paper.Path();
+      arrowPath.strokeColor = new paper.Color("#22c55e"); // Green
+      arrowPath.strokeWidth = 3;
+      
+      // Arrow shaft
+      const shaftStart = new paper.Point(
+        arrowStart.x + 25 * Math.cos(arrowAngle),
+        arrowStart.y + 25 * Math.sin(arrowAngle)
+      );
+      const shaftEnd = new paper.Point(
+        shaftStart.x + arrowLength * Math.cos(arrowAngle),
+        shaftStart.y + arrowLength * Math.sin(arrowAngle)
+      );
+      
+      arrowPath.moveTo(shaftStart);
+      arrowPath.lineTo(shaftEnd);
+      
+      // Arrow head
+      const headSize = 10;
+      const headAngle = Math.PI / 6; // 30 degrees
+      
+      const headLeft = new paper.Point(
+        shaftEnd.x - headSize * Math.cos(arrowAngle + headAngle),
+        shaftEnd.y - headSize * Math.sin(arrowAngle + headAngle)
+      );
+      const headRight = new paper.Point(
+        shaftEnd.x - headSize * Math.cos(arrowAngle - headAngle),
+        shaftEnd.y - headSize * Math.sin(arrowAngle - headAngle)
+      );
+      
+      arrowPath.moveTo(headLeft);
+      arrowPath.lineTo(shaftEnd);
+      arrowPath.lineTo(headRight);
+    }
+
+    // Force a redraw
+    if (paper.view) {
+      paper.view.requestUpdate();
+    }
+  };
+
+  // Draw lines when they change
+  useEffect(() => {
+    if (!paperLoaded || !paper?.project) return;
+
+    // Clear existing paths
+    paper.project.activeLayer.removeChildren();
+
+    // Draw all lines
+    lines.forEach(line => {
+      if (line.length < 2) return;
+      drawTrackWithBoundaries(line, false, false);
+    });
+  }, [lines, paperLoaded, trackWidth]);
+
+  const initializePaperTool = () => {
+    if (!paper.project) return;
+    
+    const tool = new paper.Tool();
+    
+    tool.onMouseDown = handleMouseDown;
+    tool.onMouseDrag = handleMouseDrag;
+    tool.onMouseUp = handleMouseUp;
+  };
+
+  const handleMouseDown = (event: paper.ToolEvent) => {
+    if (!paper.project) return;
+    
+    const hitResult = paper.project.hitTest(event.point, {
+      segments: true,
+      stroke: true,
+      tolerance: 15
+    });
+
+    if (hitResult?.type === 'segment' || hitResult?.type === 'stroke') {
+      return;
+    }
+
+    currentPath.current = new paper.Path({
+      segments: [event.point],
+      strokeColor: new paper.Color('#e11d48'), // Red center line
+      strokeWidth: 3,
+      strokeCap: 'round',
+      strokeJoin: 'round',
+      fullySelected: false
+    });
+
+    innerPath.current = new paper.Path({
+      strokeColor: new paper.Color('#2563eb'), // Blue left boundary
+      strokeWidth: 2,
+      strokeCap: 'round',
+      strokeJoin: 'round',
+      fullySelected: false
+    });
+
+    outerPath.current = new paper.Path({
+      strokeColor: new paper.Color('#16a34a'), // Green right boundary
+      strokeWidth: 2,
+      strokeCap: 'round',
+      strokeJoin: 'round',
+      fullySelected: false
     });
   };
 
-  const handleMouseUp = () => {
-    if (!drawing) return;
-    
-    setDrawing(false);
-    
-    // Validate the final line
-    setLines((prev) => {
-      const currentLine = prev[prev.length - 1];
-      // Remove lines that are too short
-      if (currentLine.length < 2) {
-        return prev.slice(0, -1);
-      }
-      return prev;
-    });
+  const handleMouseDrag = (event: paper.ToolEvent) => {
+    if (!currentPath.current) return;
 
-    // Update track length if needed
-    if (onTrackLengthChange && lines.length > 0) {
-      const lastLine = lines[lines.length - 1];
-      const lengthPixels = getLineLength(lastLine);
-      const lengthKm = (lengthPixels * 2) / 1000;
-      onTrackLengthChange(Number(lengthKm.toFixed(3)));
+    const minDistance = 3;
+    const lastPoint = currentPath.current.lastSegment.point;
+    if (event.point.subtract(lastPoint).length < minDistance) {
+      return;
     }
+
+    currentPath.current.add(event.point);
+    
+    // Apply smoothing to the current path
+    if (currentPath.current.segments.length > 2) {
+      // Smooth only the last few segments for better control
+      const smoothSegments = currentPath.current.segments.slice(-4);
+      smoothSegments.forEach((segment, i) => {
+        if (i > 0 && i < smoothSegments.length - 1) {
+          const prev = smoothSegments[i - 1].point;
+          const curr = segment.point;
+          const next = smoothSegments[i + 1].point;
+          
+          // Calculate the smoothed point position
+          const smoothX = (prev.x + curr.x + next.x) / 3;
+          const smoothY = (prev.y + curr.y + next.y) / 3;
+          
+          // Update the point position
+          segment.point.x = smoothX;
+          segment.point.y = smoothY;
+        }
+      });
+    }
+    
+    // Update the track boundaries
+    if (innerPath.current && outerPath.current && currentPath.current.segments.length > 1) {
+      // Get points from the current path
+      const points = currentPath.current.segments.map(s => s.point);
+      
+      // Calculate uniform normals
+      const normals = calculateUniformNormals(points);
+      const halfWidth = trackWidth / 2;
+
+      // Update boundary paths
+      innerPath.current.removeSegments();
+      outerPath.current.removeSegments();
+
+      points.forEach((point, i) => {
+        innerPath.current!.add(new paper.Point(
+          point.x + normals[i].x * halfWidth,
+          point.y + normals[i].y * halfWidth
+        ));
+        outerPath.current!.add(new paper.Point(
+          point.x - normals[i].x * halfWidth,
+          point.y - normals[i].y * halfWidth
+        ));
+      });
+
+      // Smooth the paths if we have enough points
+      if (points.length > 2) {
+        innerPath.current.smooth();
+        outerPath.current.smooth();
+      }
+    }
+
+    // Force a redraw
+    if (paper.view) {
+      paper.view.requestUpdate();
+    }
+  };
+
+  // Helper function to calculate curvature
+  const calculateCurvature = (points: Point[]): number[] => {
+    const curvature: number[] = [];
+    
+    if (points.length < 3) {
+      return curvature;
+    }
+
+    for (let i = 1; i < points.length - 1; i++) {
+      const prev = points[i - 1];
+      const curr = points[i];
+      const next = points[i + 1];
+
+      // Calculate vectors
+      const v1 = { x: curr.x - prev.x, y: curr.y - prev.y };
+      const v2 = { x: next.x - curr.x, y: next.y - curr.y };
+
+      // Calculate lengths
+      const l1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
+      const l2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
+
+      // Calculate angle between vectors
+      const dot = v1.x * v2.x + v1.y * v2.y;
+      const cross = v1.x * v2.y - v1.y * v2.x;
+      const angle = Math.atan2(cross, dot);
+
+      // Calculate curvature (1/radius)
+      const k = 2 * Math.sin(angle) / l1;
+      curvature.push(k);
+    }
+
+    // Add start and end points with same curvature as their neighbors
+    curvature.unshift(curvature[0]);
+    curvature.push(curvature[curvature.length - 1]);
+
+    return curvature;
+  };
+
+  // Update handleMouseUp to calculate and send track data
+  const handleMouseUp = () => {
+    if (!currentPath.current || currentPath.current.segments.length < 2) return;
+
+    // Convert Paper.js points to our Point type
+    const points: Point[] = currentPath.current.segments.map(seg => ({
+      x: seg.point.x,
+      y: seg.point.y
+    }));
+
+    // Calculate track length in kilometers
+    let length = 0;
+    for (let i = 1; i < points.length; i++) {
+      const dx = points[i].x - points[i-1].x;
+      const dy = points[i].y - points[i-1].y;
+      length += Math.sqrt(dx * dx + dy * dy);
+    }
+    const lengthKm = length / 1000; // Convert to kilometers
+
+    // Calculate curvature
+    const curvature = calculateCurvature(points);
+
+    // Update track length
+    if (onTrackLengthChange) {
+      onTrackLengthChange(lengthKm);
+    }
+
+    // Update track data
+    if (onTrackUpdate) {
+      onTrackUpdate(points, curvature, lengthKm);
+    }
+
+    // Clear the current path
+    currentPath.current = null;
+    innerPath.current = null;
+    outerPath.current = null;
+
+    // Redraw the track with boundaries
+    drawTrackWithBoundaries(points, false, true);
   };
 
   return (
-    <div className="w-full h-full flex flex-col">
-      {/* Canvas area fills all available space */}
-      <div
-        ref={containerRef}
-        className="flex-1 w-full h-0 relative flex items-center justify-center"
-      >
+    <div className="relative w-full h-full">
         <canvas
           ref={canvasRef}
-          width={canvasSize.width}
-          height={canvasSize.height}
-          className="border border-gray-300 rounded bg-white cursor-crosshair w-full h-full absolute top-0 left-0"
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-        />
-      </div>
-      {/* Clear Button and Instructional text below the canvas */}
-      <div className="flex flex-col items-center mt-4">
+        className="w-full h-full border border-gray-200 rounded-lg"
+      />
+      
+      {/* Control buttons */}
+      <div className="absolute bottom-4 right-4 flex gap-2">
         <button
-          className="px-4 py-2 bg-red-600 text-white rounded shadow hover:bg-red-700 transition hover:cursor-pointer"
-          onClick={handleClear}
+          onClick={() => {
+            handleClear();
+            if (paper?.project) {
+              paper.project.activeLayer.removeChildren();
+            }
+          }}
+          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+          title="Clear the track and all racing lines"
+          disabled={!paperLoaded}
         >
           Clear
         </button>
-        <p className="text-center mt-2 text-sm text-gray-500">
-          Use mouse/pen to draw a track and find the race line.
-        </p>
       </div>
+
+      {!paperLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75">
+          <div className="text-gray-600">Loading drawing tools...</div>
+        </div>
+      )}
     </div>
   );
 };
