@@ -145,4 +145,10 @@ class PhysicsBasedModel(BaseRacingLineModel):
         # Apply enhanced smoothing for clean lines
         racing_line = self.smooth_racing_line(racing_line, smoothing_level="medium")
         
+        # Ensure the racing line is properly closed for closed tracks
+        if len(track_points) > 2 and np.allclose(track_points[0], track_points[-1], atol=1e-3):
+            # This is a closed track, ensure the racing line is also closed
+            if not np.allclose(racing_line[0], racing_line[-1], atol=1e-3):
+                racing_line[-1] = racing_line[0]  # Force the last point to match the first
+        
         return racing_line 

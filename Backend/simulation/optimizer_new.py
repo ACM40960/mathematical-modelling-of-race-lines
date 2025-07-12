@@ -26,19 +26,49 @@ MODELS = {
 
 def resample_track_points(points: np.ndarray, num_points: int = 50) -> np.ndarray:
     """
-    Resample track points to reduce computational complexity while maintaining track shape
+    Resample track points to reduce computational complexity while maintaining track shape.
+    Ensures the track is treated as a closed loop and preserves the start/finish position.
     """
     # Convert points to numpy array if not already
     points = np.array(points)
     
-    # Fit a B-spline to the points
-    tck, u = splprep([points[:,0], points[:,1]], s=0, per=False)
+    # Check if track is already closed (last point same as first)
+    is_closed = np.allclose(points[0], points[-1], atol=1e-3)
     
-    # Generate new points along the spline
-    u_new = np.linspace(0, 1, num_points)
-    x_new, y_new = splev(u_new, tck)
+    if not is_closed:
+        # Close the track by adding the first point at the end
+        points = np.vstack([points, points[0]])
     
-    return np.column_stack((x_new, y_new))
+    # For closed tracks, use periodic spline fitting
+    try:
+        # Use periodic spline for closed tracks
+        tck, u = splprep([points[:,0], points[:,1]], s=0, per=True)
+        
+        # Generate new points along the spline, ensuring we start at u=0 (original start position)
+        u_new = np.linspace(0, 1, num_points + 1)[:-1]  # Exclude the last point to avoid duplication
+        x_new, y_new = splev(u_new, tck)
+        
+        resampled_points = np.column_stack((x_new, y_new))
+        
+        # Ensure the track is properly closed by adding the first point at the end
+        resampled_points = np.vstack([resampled_points, resampled_points[0]])
+        
+        return resampled_points
+        
+    except Exception as e:
+        print(f"Periodic spline fitting failed: {e}. Falling back to non-periodic.")
+        # Fallback to non-periodic spline if periodic fails
+        tck, u = splprep([points[:,0], points[:,1]], s=0, per=False)
+        u_new = np.linspace(0, 1, num_points)
+        x_new, y_new = splev(u_new, tck)
+        
+        resampled_points = np.column_stack((x_new, y_new))
+        
+        # Ensure the track is closed
+        if not np.allclose(resampled_points[0], resampled_points[-1], atol=1e-3):
+            resampled_points = np.vstack([resampled_points, resampled_points[0]])
+        
+        return resampled_points
 
 def compute_curvature(points: np.ndarray) -> np.ndarray:
     """
@@ -156,17 +186,36 @@ def optimize_racing_line(track, model: RacingLineModel = RacingLineModel.PHYSICS
     track_width = track.width
     friction = track.friction
     
+    # Store the original start position for alignment
+    original_start = track_points[0].copy()
+    
     # Resample track points to manageable size
-    track_points = resample_track_points(track_points, num_points=min(100, len(track_points)))
+    resampled_points = resample_track_points(track_points, num_points=min(100, len(track_points)))
+    
+    # Ensure the resampled track starts at the same position as the original
+    # Find the closest point in resampled track to the original start
+    distances = np.linalg.norm(resampled_points - original_start, axis=1)
+    start_idx = np.argmin(distances)
+    
+    # Rotate the resampled points so they start at the correct position
+    if start_idx != 0:
+        resampled_points = np.vstack([
+            resampled_points[start_idx:],
+            resampled_points[1:start_idx+1]  # Skip the duplicate point at the end
+        ])
     
     # Calculate curvature for the track centerline
-    curvature = compute_curvature(track_points)
+    curvature = compute_curvature(resampled_points)
     
     # Get the appropriate model
     racing_model = MODELS.get(model, MODELS[RacingLineModel.PHYSICS_BASED])
     
     # Calculate base racing line using the selected model
-    base_racing_line = racing_model.calculate_racing_line(track_points, curvature, track_width)
+    base_racing_line = racing_model.calculate_racing_line(resampled_points, curvature, track_width)
+    
+    # Ensure the racing line is also properly closed and starts at the correct position
+    if not np.allclose(base_racing_line[0], base_racing_line[-1], atol=1e-3):
+        base_racing_line = np.vstack([base_racing_line, base_racing_line[0]])
     
     # For multiple cars, create separated racing lines to prevent crossovers
     num_cars = len(track.cars)
@@ -176,7 +225,7 @@ def optimize_racing_line(track, model: RacingLineModel = RacingLineModel.PHYSICS
     else:
         # Multiple cars - create separated lines
         racing_lines = create_separated_racing_lines(
-            track_points, base_racing_line, track_width, num_cars
+            resampled_points, base_racing_line, track_width, num_cars
         )
     
     optimal_lines = []
@@ -185,6 +234,10 @@ def optimize_racing_line(track, model: RacingLineModel = RacingLineModel.PHYSICS
         try:
             # Use the appropriate racing line for this car
             racing_line = racing_lines[i] if i < len(racing_lines) else base_racing_line
+            
+            # Ensure this racing line is also properly closed
+            if not np.allclose(racing_line[0], racing_line[-1], atol=1e-3):
+                racing_line = np.vstack([racing_line, racing_line[0]])
             
             # Calculate speed profile for this racing line
             racing_curvature = compute_curvature(racing_line)
@@ -216,9 +269,9 @@ def optimize_racing_line(track, model: RacingLineModel = RacingLineModel.PHYSICS
             print(f"Warning: Optimization failed for car {car.id} with model {model.value}: {str(e)}")
             optimal_lines.append({
                 "car_id": car.id,
-                "coordinates": track_points.tolist(),  # Use original track as fallback
-                "speeds": [10.0] * len(track_points),  # Safe fallback speed
-                "lap_time": len(track_points) * 0.1,   # Fallback lap time
+                "coordinates": resampled_points.tolist(),  # Use resampled track as fallback
+                "speeds": [10.0] * len(resampled_points),  # Safe fallback speed
+                "lap_time": len(resampled_points) * 0.1,   # Fallback lap time
                 "model": model.value
             })
     
@@ -306,6 +359,10 @@ def create_separated_racing_lines(
                 car_racing_line[:, 1] = gaussian_filter1d(car_racing_line[:, 1], sigma=sigma)
         except:
             pass
+        
+        # Ensure the racing line is properly closed
+        if not np.allclose(car_racing_line[0], car_racing_line[-1], atol=1e-3):
+            car_racing_line = np.vstack([car_racing_line, car_racing_line[0]])
         
         racing_lines.append(car_racing_line)
     
