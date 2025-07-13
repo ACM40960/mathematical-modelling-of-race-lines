@@ -262,8 +262,8 @@ def calculate_max_entry_speed(curvature: float, friction: float, car: Car) -> fl
   ],
   "width": 15.0,
   "friction": 0.8,
-  "cars": [
-    {
+    "cars": [
+      {
       "id": "car_1",
       "mass": 740.0,
       "max_steering_angle": 45.0,
@@ -487,179 +487,306 @@ This backend represents a sophisticated racing line optimization system that com
 
 ### Physics-Based Model Mathematical Foundation
 
-The physics-based model implements a practical racing line algorithm based on corner phase detection and offset calculation, inspired by Perantoni & Limebeer's optimal control research.
+The physics-based model implements optimal control theory for racing vehicles, based on the research by Perantoni & Limebeer.
 
-#### 1. Corner Detection and Classification
+#### 1. Vehicle Dynamics Equations
 
-**Curvature Smoothing**:
+**Lateral Force Balance**:
 ```
-κ_smooth(i) = G_σ * κ(i)
-```
-Where G_σ is a Gaussian filter with σ = 3.0.
-
-**Corner Identification**:
-```
-corner_mask(i) = |κ_smooth(i)| > κ_threshold
-```
-Where κ_threshold = 0.003.
-
-**Phase Detection Algorithm**:
-For each corner point i, calculate:
-```
-κ_behind = mean(|κ_smooth[i-15:i]|)
-κ_current = |κ_smooth[i]|
-κ_ahead = mean(|κ_smooth[i:i+15]|)
-```
-
-**Phase Classification**:
-- **Apex**: κ_behind < κ_current AND κ_ahead < κ_current → phase_factor = 1.0
-- **Entry**: κ_behind < κ_current AND κ_ahead ≥ κ_current → phase_factor = 0.6
-- **Exit**: κ_behind ≥ κ_current AND κ_ahead < κ_current → phase_factor = 0.9
-- **Middle**: Otherwise → phase_factor = 0.8
-
-#### 2. Racing Line Offset Calculation
-
-**Maximum Allowed Offset**:
-```
-w_max = track_width × 0.35
-```
-This gives 70% total track usage.
-
-**Corner Offset Strategy**:
-```
-if phase_factor == 1.0:     # Apex
-    base_offset = w_max × 0.7
-elif phase_factor == 0.6:   # Entry
-    base_offset = w_max × 0.6 × (-1)  # Go wide
-elif phase_factor == 0.9:   # Exit  
-    base_offset = w_max × 0.5 × (-1)  # Go wide
-else:                       # Middle
-    base_offset = w_max × 0.4
-```
-
-**Final Offset Vector**:
-```
-offset_vector = perpendicular_vector(i) × base_offset × corner_direction
+F_lateral = m * v² / R = μ * m * g + F_aero
 ```
 
 Where:
-- **corner_direction = -sign(κ_smooth[i])** (negative for inside corner)
-- **perpendicular_vector** is the unit normal to the track centerline
+- **m**: Vehicle mass (kg)
+- **v**: Velocity (m/s)
+- **R**: Radius of curvature (m)
+- **μ**: Friction coefficient
+- **g**: Gravitational acceleration (9.81 m/s²)
+- **F_aero**: Aerodynamic downforce contribution
 
-#### 3. Straight-Line Positioning
-
-**Corner Setup Algorithm**:
-For straight sections, look ahead for upcoming corners:
+**Maximum Cornering Speed**:
 ```
-setup_offset = w_max × 0.6 × (-upcoming_corner_direction)
-transition_factor = max(0.2, 1 - distance_to_corner/look_ahead_distance)
-final_offset = setup_offset × transition_factor
-```
-
-This positions the car wide before corner entry.
-
-#### 4. Boundary Constraint Enforcement
-
-**Distance Check**:
-```
-d_center = ||proposed_point - centerline_point||
+v_max = √(μ * g * R + F_aero * R / m)
 ```
 
-**Scaling for Boundary Compliance**:
+For simplified calculations without detailed aerodynamics:
 ```
-if d_center > w_max:
-    scale_factor = w_max / d_center
-    final_point = centerline_point + offset_vector × scale_factor
+v_max = √(μ * g / κ)
+```
+
+Where **κ = 1/R** is the curvature.
+
+#### 2. Racing Line Optimization Theory
+
+**Objective Function**: Minimize lap time T
+```
+T = ∫[0 to L] dt = ∫[0 to L] ds/v(s)
+```
+
+Where:
+- **L**: Track length
+- **s**: Arc length parameter
+- **v(s)**: Speed as a function of position
+
+**Constraints**:
+1. **Track Boundaries**: |lateral_offset| ≤ w/2
+2. **Speed Limits**: v(s) ≤ v_max(κ(s))
+3. **Acceleration Limits**: |dv/dt| ≤ a_max
+
+#### 3. Wide-Apex-Wide Theory
+
+**Mathematical Formulation**:
+
+For a corner with entry at s₁, apex at s₂, and exit at s₃:
+
+**Entry Phase** (s₁ → s₂):
+```
+lateral_offset(s) = -w_max * (1 - cos(π(s-s₁)/(s₂-s₁)))
+```
+
+**Exit Phase** (s₂ → s₃):
+```
+lateral_offset(s) = -w_max * cos(π(s-s₂)/(s₃-s₂))
+```
+
+Where:
+- **w_max**: Maximum allowed lateral offset
+- **Negative offset**: Toward inside of corner
+- **Cosine function**: Provides smooth transitions
+
+#### 4. Corner Phase Detection Algorithm
+
+**Curvature Analysis**:
+```
+κ_smooth(i) = Σ[j=-n to n] w_j * κ(i+j)
+```
+
+Where **w_j** are Gaussian weights for smoothing.
+
+**Phase Classification**:
+- **Apex**: κ_behind < κ_current > κ_ahead
+- **Entry**: κ_behind < κ_current ≤ κ_ahead  
+- **Exit**: κ_behind ≥ κ_current > κ_ahead
+
+**Offset Calculation**:
+```
+offset(i) = phase_factor * w_max * sign(κ(i)) * normal_vector(i)
 ```
 
 ### Basic Model Mathematical Foundation
 
-The basic model uses a simplified geometric approach with direct curvature-based offset calculation.
+The basic model uses simplified geometric principles for racing line calculation.
 
-#### 1. Corner Detection
+#### 1. Geometric Racing Line Theory
 
-**Curvature Smoothing**:
-```
-κ_smooth(i) = G_σ * κ(i)
-```
-Where G_σ is a Gaussian filter with σ = 5.0 (more aggressive smoothing).
+**Principle**: Minimize path curvature while respecting track boundaries.
 
-**Corner Threshold**:
+**Curvature Penalty Function**:
 ```
-κ_threshold = 0.005
+J = ∫[0 to L] κ²(s) ds + λ ∫[0 to L] offset²(s) ds
 ```
 
-#### 2. Direct Curvature-Based Offset
+Where:
+- **First term**: Penalizes high curvature (promotes smoothness)
+- **Second term**: Penalizes large offsets (promotes centerline following)
+- **λ**: Weighting parameter
 
-**Corner Severity Calculation**:
-```
-corner_severity = min(|κ_smooth(i)| × 200, 1.0)
-```
+#### 2. Offset Calculation
 
-**Offset Magnitude**:
+**Corner Offset**:
 ```
-offset_magnitude = w_max × corner_severity × 0.6
-```
-
-Where w_max = track_width × 0.3 (60% total track usage).
-
-**Exit Positioning Adjustment**:
-```
-if avg_curvature_ahead < κ_threshold:
-    offset_magnitude *= 0.7  # More conservative for corner exit
+offset(s) = -α * w_max * tanh(β * κ(s))
 ```
 
-#### 3. Straight-Line Setup
+Where:
+- **α**: Aggressiveness parameter (0.6 for basic model)
+- **β**: Sensitivity parameter (200 for basic model)
+- **tanh**: Hyperbolic tangent for smooth saturation
 
-**Setup Offset Calculation**:
+**Straight-Line Positioning**:
 ```
-setup_offset = w_max × 0.5 × (-upcoming_corner_direction)
-transition_factor = max(0.1, 1 - distance_to_corner/look_ahead_distance)
-final_offset = setup_offset × transition_factor
-```
-
-The basic model uses a shorter look-ahead distance (12 points vs 20) and more conservative factors.
-
-## Comparison of Mathematical Approaches
-
-### Key Differences:
-
-1. **Corner Detection Sensitivity**:
-   - **Physics Model**: κ_threshold = 0.003, σ = 3.0
-   - **Basic Model**: κ_threshold = 0.005, σ = 5.0
-
-2. **Track Usage**:
-   - **Physics Model**: 70% (w_max = 0.35 × track_width)
-   - **Basic Model**: 60% (w_max = 0.3 × track_width)
-
-3. **Offset Calculation**:
-   - **Physics Model**: Phase-based with discrete factors (0.4, 0.5, 0.6, 0.7)
-   - **Basic Model**: Continuous severity-based (curvature × 200)
-
-4. **Look-ahead Distance**:
-   - **Physics Model**: 15-20 points
-   - **Basic Model**: 12 points
-
-5. **Smoothing Strategy**:
-   - **Physics Model**: Medium smoothing (σ = 1.5-2.0)
-   - **Basic Model**: Heavy smoothing (σ = 2.0-3.0)
-
-### Mathematical Formulation Summary:
-
-**Physics Model**:
-```
-offset(i) = {
-    phase_factor × w_max × corner_direction × perpendicular_vector(i)  if corner
-    setup_factor × w_max × transition_factor × perpendicular_vector(i)  if straight
-}
+offset(s) = γ * w_max * exp(-d/d₀) * sign(κ_future)
 ```
 
-**Basic Model**:
+Where:
+- **γ**: Setup aggressiveness (0.5)
+- **d**: Distance to upcoming corner
+- **d₀**: Characteristic setup distance
+- **κ_future**: Curvature of upcoming corner
+
+## Speed Profile Mathematical Model
+
+### 1. Maximum Speed Calculation
+
+**Basic Physics Model**:
 ```
-offset(i) = {
-    min(|κ(i)| × 200, 1.0) × w_max × 0.6 × corner_direction × perpendicular_vector(i)  if corner
-    0.5 × w_max × transition_factor × (-corner_direction) × perpendicular_vector(i)      if straight
-}
+v_max(κ) = √(μ * g / κ)  for κ > 0
+v_max(κ) = v_straight     for κ ≈ 0
 ```
 
-Both models use the same boundary constraint enforcement and smoothing post-processing, but differ in their core offset calculation strategies. 
+**Enhanced Model with Aerodynamics**:
+```
+F_centripetal = m * v² / R
+F_available = μ * (m * g + ½ * ρ * v² * C_L * A)
+```
+
+Setting F_centripetal = F_available:
+```
+m * v² / R = μ * (m * g + ½ * ρ * v² * C_L * A)
+```
+
+Solving for v:
+```
+v² * (m/R - μ * ½ * ρ * C_L * A) = μ * m * g
+v = √(μ * m * g / (m/R - μ * ½ * ρ * C_L * A))
+```
+
+Where:
+- **ρ**: Air density (1.225 kg/m³)
+- **C_L**: Lift coefficient (negative for downforce)
+- **A**: Effective frontal area (m²)
+
+### 2. Vehicle-Specific Constraints
+
+**Steering Angle Limitation**:
+```
+R_min = L / tan(δ_max)
+```
+
+Where:
+- **L**: Wheelbase (≈ 0.6 × vehicle length)
+- **δ_max**: Maximum steering angle
+
+**Speed Limit from Steering**:
+```
+v_steering = √(μ * g * R_min)  if R < R_min
+```
+
+### 3. Speed Profile Smoothing
+
+**Gaussian Smoothing**:
+```
+v_smooth(i) = Σ[j=-n to n] G(j,σ) * v(i+j)
+```
+
+Where:
+```
+G(j,σ) = (1/√(2πσ²)) * exp(-j²/(2σ²))
+```
+
+**Acceleration Constraints**:
+```
+|dv/dt| = |dv/ds * ds/dt| = |dv/ds * v| ≤ a_max
+```
+
+Therefore:
+```
+|dv/ds| ≤ a_max / v
+```
+
+## Multi-Car Separation Mathematics
+
+### 1. Lateral Separation Algorithm
+
+**Offset Distribution**:
+For n cars, offsets are distributed as:
+```
+offset_i = (2i - n - 1) * d_sep / 2
+```
+
+Where:
+- **i**: Car index (1 to n)
+- **d_sep**: Minimum separation distance
+
+**Safety Constraint**:
+```
+d_sep ≥ max(3.0, 0.2 * w_track)
+```
+
+### 2. Boundary Checking
+
+**Distance from Centerline**:
+```
+d_center = ||r_car - r_centerline||
+```
+
+**Boundary Constraint**:
+```
+d_center ≤ 0.45 * w_track
+```
+
+**Scaling Factor for Boundary Compliance**:
+```
+scale = min(1.0, (0.45 * w_track) / d_center)
+offset_final = offset_desired * scale
+```
+
+### 3. Smoothing Mathematics
+
+**Multi-Pass Gaussian Filtering**:
+```
+x_smooth^(k+1) = G_σk * x_smooth^(k)
+```
+
+With progressive smoothing parameters: σ₁ = 1.0, σ₂ = 1.5, σ₃ = 2.0
+
+## Spline Mathematics for Track Resampling
+
+### 1. Periodic B-Spline Fitting
+
+**Parametric Representation**:
+```
+r(u) = Σ[i=0 to n] N_i,k(u) * P_i
+```
+
+Where:
+- **N_i,k(u)**: B-spline basis functions of degree k
+- **P_i**: Control points
+- **u ∈ [0,1]**: Parameter space
+
+**Periodic Constraint**:
+```
+r(0) = r(1)
+r'(0) = r'(1)
+```
+
+### 2. Arc Length Parameterization
+
+**Arc Length Calculation**:
+```
+s(u) = ∫[0 to u] ||r'(t)|| dt
+```
+
+**Uniform Resampling**:
+```
+u_i = s^(-1)(i * L_total / n_points)
+```
+
+Where L_total is the total track length.
+
+## Optimization Convergence Mathematics
+
+### 1. Smoothing Convergence
+
+**Fixed-Point Iteration**:
+```
+x^(k+1) = S(x^(k))
+```
+
+Where S is the smoothing operator.
+
+**Convergence Criterion**:
+```
+||x^(k+1) - x^(k)||₂ < ε
+```
+
+### 2. Boundary Projection
+
+**Projection Operator**:
+```
+P_boundary(x) = arg min_{y ∈ Ω} ||x - y||₂
+```
+
+Where Ω is the feasible region (track boundaries).
+
+This mathematical framework ensures that the racing line optimization is both physically realistic and computationally robust, combining classical racing theory with modern numerical methods. 

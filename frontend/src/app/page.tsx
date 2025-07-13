@@ -10,8 +10,25 @@ import { Point, Car, Track } from "../types";
 // Dynamically import CanvasDrawPaper with no SSR
 const CanvasDrawPaper = dynamic(
   () => import("../components/CanvasDrawPaper"),
-  { ssr: false }
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded border border-gray-300">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <div className="text-blue-600 font-mono text-sm">INITIALIZING CANVAS...</div>
+        </div>
+      </div>
+    )
+  }
 );
+
+interface SimulationResult {
+  car_id: string;
+  coordinates: number[][];
+  speeds: number[];
+  lap_time: number;
+}
 
 export default function Home() {
   // Track state
@@ -23,11 +40,18 @@ export default function Home() {
   
   // Cars state
   const [cars, setCars] = useState<Car[]>([]);
+  
+  // Racing line model state
+  const [selectedModel, setSelectedModel] = useState<string>('physics_based');
+  
+  // Simulation results state
+  const [simulationResults, setSimulationResults] = useState<SimulationResult[]>([]);
 
-  // Clear all drawn lines
+  // Clear all drawn lines and results
   const handleClear = () => {
     setLines([]);
     setTrack(null);
+    setSimulationResults([]);
   };
 
   // Update track data when lines are drawn
@@ -35,42 +59,42 @@ export default function Home() {
     setTrackLength(length);
     setTrack({
       track_points: trackPoints,
-      curvature: curvature,
-      track_length: length * 1000, // Convert km to meters
-      message: "Track updated",
-      width: trackWidth
+      width: trackWidth,
+      friction: 0.7,
+      cars: cars
     });
   };
 
+  // Handle simulation results
+  const handleSimulationResults = (results: SimulationResult[]) => {
+    setSimulationResults(results);
+  };
+
   return (
-    <>
+    <div className="min-h-screen bg-gray-50">
       <Header />
-      <main className="flex items-start justify-center gap-4 p-8 h-[calc(100vh-72px)]">
+      <main className="flex items-start justify-center gap-2 p-2 h-[calc(100vh-72px)]">
         {/* Canvas Area (80%) */}
         <div className="flex-1 basis-4/5 max-w-[80%] h-full">
-          {/*
-            CanvasDraw receives:
-            - lines: the array of drawn lines
-            - setLines: function to update lines
-            - handleClear: function to clear the canvas
-            - trackWidth: the track width
-            - onTrackLengthChange: function to update track length in km after drawing
-            - onTrackUpdate: function to update track data
-            - cars: the array of cars
-          */}
-          <CanvasDrawPaper
-            lines={lines}
-            setLines={setLines}
-            handleClear={handleClear}
-            trackWidth={trackWidth}
-            onTrackLengthChange={setTrackLength}
-            onTrackUpdate={handleTrackUpdate}
-            cars={cars}
-          />
+          <div className="h-full bg-white border border-gray-300 rounded shadow-sm">
+            <CanvasDrawPaper
+              lines={lines}
+              setLines={setLines}
+              handleClear={handleClear}
+              trackWidth={trackWidth}
+              onTrackLengthChange={setTrackLength}
+              onTrackUpdate={handleTrackUpdate}
+              cars={cars}
+              simulationResults={simulationResults}
+              onSimulationResults={handleSimulationResults}
+              selectedModel={selectedModel}
+            />
+          </div>
         </div>
-        {/* Control Panel (20%) - TrackControl and CarControl now rendered here */}
-        <div className="flex-1 basis-1/5 max-w-[20%] bg-gray-100 rounded-lg shadow p-4 h-full flex items-center justify-center">
-          <div className="space-y-6">
+        
+        {/* Control Panel (20%) */}
+        <div className="flex-1 basis-1/5 max-w-[20%] h-full">
+          <div className="h-full flex flex-col gap-2">
             {/* Track controls */}
             <TrackControl
               trackWidth={trackWidth}
@@ -86,15 +110,18 @@ export default function Home() {
               setDiscretizationStep={setDiscretizationStep}
             />
 
-            {/* Car controls */}
+            {/* Car controls with model selection */}
             <CarControl
               cars={cars}
               setCars={setCars}
               track={track}
+              onSimulationResults={handleSimulationResults}
+              selectedModel={selectedModel}
+              setSelectedModel={setSelectedModel}
             />
           </div>
         </div>
       </main>
-    </>
+    </div>
   );
 }

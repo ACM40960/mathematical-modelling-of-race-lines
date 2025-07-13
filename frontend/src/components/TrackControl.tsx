@@ -18,16 +18,6 @@
 
 import React, { useState } from "react";
 
-/**
- * Props Interface
- * Defines the required properties for the TrackControl component:
- * @property {number} trackWidth - Current width of the track in meters
- * @property {function} setTrackWidth - Callback to update track width
- * @property {number} trackLength - Current length of the track in kilometers
- * @property {function} setTrackLength - Callback to update track length
- * @property {number} discretizationStep - Current sampling step size
- * @property {function} setDiscretizationStep - Callback to update step size
- */
 interface TrackControlProps {
   trackWidth: number;
   setTrackWidth: (width: number) => void;
@@ -37,39 +27,16 @@ interface TrackControlProps {
   setDiscretizationStep: (step: number) => void;
 }
 
-/**
- * Validation Rules Interface
- * Defines the structure for input validation rules
- * @property {number} min - Minimum allowed value
- * @property {number} max - Maximum allowed value
- * @property {number} step - Step size for input increments
- */
 interface ValidationRules {
   min: number;
   max: number;
   step: number;
 }
 
-/**
- * Validation Rules Configuration
- * Defines the bounds and step sizes for each track parameter
- */
 const validationRules = {
-  trackWidth: { 
-    min: 10,    // Minimum track width: 10 meters
-    max: 30,    // Maximum track width: 30 meters
-    step: 1     // Width adjusts in 1-meter increments
-  },
-  trackLength: { 
-    min: 0,    // Minimum track length: 0 kilometers
-    max: 10,   // Maximum track length: 10 kilometers
-    step: 0.1  // Length adjusts in 0.1 km increments
-  },
-  discretizationStep: { 
-    min: 0.1,  // Minimum step size: 0.1
-    max: 10,   // Maximum step size: 10
-    step: 0.1  // Step size adjusts in 0.1 increments
-  }
+  trackWidth: { min: 10, max: 30, step: 1 },
+  trackLength: { min: 0, max: 10, step: 0.1 },
+  discretizationStep: { min: 0.1, max: 10, step: 0.1 }
 };
 
 const TrackControl: React.FC<TrackControlProps> = ({
@@ -83,16 +50,6 @@ const TrackControl: React.FC<TrackControlProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /**
-   * Validates and updates a numeric input value
-   * 1. Clamps the value between min and max bounds
-   * 2. Rounds to match the specified step size
-   * 3. Updates the state through the provided setter function
-   * 
-   * @param value - The new value to validate
-   * @param setter - The state setter function to call
-   * @param rules - The validation rules to apply
-   */
   const validateAndSetValue = (
     value: number,
     setter: (value: number) => void,
@@ -102,9 +59,6 @@ const TrackControl: React.FC<TrackControlProps> = ({
     setter(validValue);
   };
 
-  /**
-   * Sends track data to the backend for processing
-   */
   const handleSendToBackend = async () => {
     setIsLoading(true);
     setError(null);
@@ -136,33 +90,37 @@ const TrackControl: React.FC<TrackControlProps> = ({
   };
 
   return (
-    <div className="flex flex-col gap-4 w-full text-sm">
+    <div className="w-full bg-white text-gray-800 text-xs font-mono border border-gray-300 rounded shadow-sm">
       {/* Curvature Profile Section */}
-      <div className="bg-white rounded shadow p-3 text-center">
-        <span className="font-medium text-gray-700">Curvature Profile</span>
-        <div className="mt-1 text-xs text-gray-400">
+      <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
+        <div className="flex items-center justify-between">
+          <span className="text-gray-700 text-xs">CURVATURE PROFILE</span>
+        </div>
+        <div className="mt-1 text-xs text-gray-500">
           (Generated from track)
         </div>
       </div>
 
-      {/* Race Settings Section */}
-      <div className="bg-white rounded shadow p-3">
-        <h3 className="font-medium text-gray-700 mb-3">Race Settings</h3>
+      {/* Track Settings Section */}
+      <div className="px-3 py-2 border-b border-gray-200">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-gray-700 text-xs">TRACK SETTINGS</span>
+          <span className="text-orange-600 text-xs font-bold">
+            {trackLength.toFixed(1)}KM
+          </span>
+        </div>
         
-        {/* Track Width with compact slider */}
+        {/* Track Width with Racing-Style Slider */}
         <div className="mb-3">
           <div className="flex justify-between items-center mb-1">
-            <label htmlFor="trackWidth" className="text-gray-600 text-xs">
-              Track Width
-            </label>
-            <span className="text-xs font-medium text-gray-700">
-              {trackWidth}m
+            <label className="text-gray-600 text-xs">WIDTH</label>
+            <span className="text-gray-800 text-xs font-bold">
+              {trackWidth}M
             </span>
           </div>
           <input
-            id="trackWidth"
             type="range"
-            className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+            className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb"
             value={trackWidth}
             min={validationRules.trackWidth.min}
             max={validationRules.trackWidth.max}
@@ -173,26 +131,23 @@ const TrackControl: React.FC<TrackControlProps> = ({
               validationRules.trackWidth
             )}
           />
-          <div className="flex justify-between text-[10px] text-gray-400">
-            <span>Narrow</span>
-            <span>Wide</span>
+          <div className="flex justify-between text-xs text-gray-500 mt-1">
+            <span>NARROW</span>
+            <span>WIDE</span>
           </div>
         </div>
 
         {/* Track Length */}
         <div className="mb-3">
           <div className="flex justify-between items-center mb-1">
-            <label htmlFor="trackLength" className="text-gray-600 text-xs">
-              Track Length
-            </label>
-            <span className="text-xs font-medium text-gray-700">
-              {trackLength}km
+            <label className="text-gray-600 text-xs">LENGTH</label>
+            <span className="text-gray-800 text-xs font-bold">
+              {trackLength.toFixed(1)}KM
             </span>
           </div>
           <input
-            id="trackLength"
             type="number"
-            className="w-full px-2 py-1 text-xs border rounded"
+            className="w-full bg-gray-50 text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
             value={trackLength}
             min={validationRules.trackLength.min}
             max={validationRules.trackLength.max}
@@ -206,19 +161,16 @@ const TrackControl: React.FC<TrackControlProps> = ({
         </div>
 
         {/* Discretization Step */}
-        <div className="mb-4">
+        <div className="mb-3">
           <div className="flex justify-between items-center mb-1">
-            <label htmlFor="discretizationStep" className="text-gray-600 text-xs">
-              Discretization (Δs)
-            </label>
-            <span className="text-xs font-medium text-gray-700">
-              {discretizationStep}
+            <label className="text-gray-600 text-xs">DISCRETIZATION</label>
+            <span className="text-gray-800 text-xs font-bold">
+              Δs={discretizationStep}
             </span>
           </div>
           <input
-            id="discretizationStep"
             type="number"
-            className="w-full px-2 py-1 text-xs border rounded"
+            className="w-full bg-gray-50 text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
             value={discretizationStep}
             min={validationRules.discretizationStep.min}
             max={validationRules.discretizationStep.max}
@@ -231,26 +183,53 @@ const TrackControl: React.FC<TrackControlProps> = ({
           />
         </div>
 
-        {/* Send to Backend Button */}
+        {/* Action Button */}
         <button
           onClick={handleSendToBackend}
           disabled={isLoading}
-          className={`w-full py-2 px-4 rounded text-white text-sm font-medium transition-colors ${
-            isLoading 
-              ? 'bg-blue-400 cursor-not-allowed' 
-              : 'bg-blue-600 hover:bg-blue-700'
+          className={`w-full py-2 px-3 rounded text-xs font-bold transition-colors ${
+            isLoading
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-blue-600 hover:bg-blue-700 text-white'
           }`}
         >
-          {isLoading ? 'Processing...' : 'Get Track Data'}
+          {isLoading ? 'SENDING...' : 'GET TRACK DATA'}
         </button>
 
-        {/* Error Message */}
+        {/* Error Display */}
         {error && (
-          <div className="mt-2 text-xs text-red-600">
+          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs">
             {error}
           </div>
         )}
       </div>
+
+      <style jsx>{`
+        .slider-thumb::-webkit-slider-thumb {
+          appearance: none;
+          width: 16px;
+          height: 16px;
+          background: #3b82f6;
+          border-radius: 50%;
+          cursor: pointer;
+          border: 2px solid #ffffff;
+          box-shadow: 0 0 0 1px #3b82f6;
+        }
+        
+        .slider-thumb::-moz-range-thumb {
+          width: 16px;
+          height: 16px;
+          background: #3b82f6;
+          border-radius: 50%;
+          cursor: pointer;
+          border: 2px solid #ffffff;
+          box-shadow: 0 0 0 1px #3b82f6;
+        }
+        
+        .slider-thumb:focus::-webkit-slider-thumb {
+          box-shadow: 0 0 0 2px #3b82f6;
+        }
+      `}</style>
     </div>
   );
 };

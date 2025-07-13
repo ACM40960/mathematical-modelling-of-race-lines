@@ -25,55 +25,76 @@ export default function Header() {
   const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
 
   return (
-    <header className="w-full bg-black shadow flex items-center justify-between px-6 py-4">
-      <div className="flex items-center gap-4">
-        <Link href="/" className="flex items-center">
-          <Image
-            src="/F1-logo.svg"
-            alt="F1 Logo"
-            width={80}
-            height={40}
-            priority
-          />
-        </Link>
-        <div className="relative">
-          <button
-            onClick={() => setDropdownOpen((open) => !open)}
-            className="flex items-center gap-1 px-4 py-2 hover:cursor-pointer focus:outline-none font-medium text-md text-white"
-          >
-            {selectedTrack ? `Track: ${selectedTrack}` : "Tracks"}
-            <svg
-              className={`w-4 h-4 transition-transform ${
-                dropdownOpen ? "rotate-180" : "rotate-0"
-              }`}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              viewBox="0 0 24 24"
+    <header className="w-full bg-white border-b border-gray-200 shadow-sm">
+      <div className="flex items-center justify-between px-6 py-3">
+        {/* Left side - Logo and Track Selection */}
+        <div className="flex items-center gap-6">
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/F1-logo.svg"
+              alt="F1 Logo"
+              width={80}
+              height={40}
+              priority
+            />
+          </Link>
+          
+          <div className="relative">
+            <button
+              onClick={() => setDropdownOpen((open) => !open)}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded text-gray-800 font-mono text-sm transition-colors focus:outline-none focus:border-blue-500"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </button>
-          {dropdownOpen && (
-            <ul className="absolute left-0 mt-2 w-40 bg-white rounded shadow-lg z-10">
-              {tracks.map((track) => (
+              <span className="text-gray-600 text-xs">CIRCUIT:</span>
+              <span className="text-gray-800 font-bold">
+                {selectedTrack ? selectedTrack.toUpperCase() : "CUSTOM"}
+              </span>
+              <svg
+                className={`w-4 h-4 transition-transform ${
+                  dropdownOpen ? "rotate-180" : "rotate-0"
+                }`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19 9l-7 7-7-7"
+                />
+              </svg>
+            </button>
+            {dropdownOpen && (
+              <ul className="absolute left-0 mt-2 w-48 bg-white border border-gray-300 rounded shadow-lg z-50 max-h-60 overflow-y-auto">
                 <li
-                  key={track}
-                  className="px-4 py-2 hover:bg-red-500 cursor-pointer first:rounded-t last:rounded-b hover:text-black hover:font-bold"
+                  className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-gray-800 font-mono text-sm border-b border-gray-200"
                   onClick={() => {
-                    setSelectedTrack(track);
+                    setSelectedTrack(null);
                     setDropdownOpen(false);
                   }}
                 >
-                  {track}
+                  <span className="text-green-500">●</span> CUSTOM TRACK
                 </li>
-              ))}
-            </ul>
-          )}
+                {tracks.map((track) => (
+                  <li
+                    key={track}
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-gray-800 font-mono text-sm border-b border-gray-200 last:border-b-0"
+                    onClick={() => {
+                      setSelectedTrack(track);
+                      setDropdownOpen(false);
+                    }}
+                  >
+                    <span className="text-gray-400">○</span> {track.toUpperCase()}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        {/* Right side - Empty space for cleaner look */}
+        <div className="flex items-center gap-4">
+          {/* Status indicators removed for cleaner UI */}
         </div>
       </div>
     </header>

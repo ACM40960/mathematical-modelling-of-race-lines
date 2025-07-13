@@ -6,9 +6,24 @@ import React, {
   useEffect,
   Dispatch,
   SetStateAction,
+  useCallback,
 } from "react";
-import { Point, Car } from "../types";
+import { Point, Car, Track } from "../types";
 import paper from 'paper';
+
+interface SimulationResult {
+  car_id: string;
+  coordinates: number[][];
+  speeds: number[];
+  lap_time: number;
+}
+
+interface CarPosition {
+  x: number;
+  y: number;
+  angle: number;
+  speed: number;
+}
 
 interface CanvasDrawPaperProps {
   lines: Point[][];
@@ -18,6 +33,9 @@ interface CanvasDrawPaperProps {
   onTrackLengthChange?: (lengthKm: number) => void;
   onTrackUpdate?: (trackPoints: Point[], curvature: number[], length: number) => void;
   cars: Car[];
+  simulationResults?: SimulationResult[];
+  onSimulationResults?: (results: SimulationResult[]) => void;
+  selectedModel: string;
 }
 
 /**
@@ -44,26 +62,73 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
   trackWidth,
   onTrackLengthChange,
   onTrackUpdate,
-  cars
+  cars,
+  simulationResults,
+  onSimulationResults,
+  selectedModel
 }) => {
+  // Add scaling factor to convert meters to pixels
+  const METERS_TO_PIXELS = 2; // 1 meter = 2 pixels (reduced from 5)
   const [paperLoaded, setPaperLoaded] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const currentPath = useRef<paper.Path | null>(null);
   const innerPath = useRef<paper.Path | null>(null);
   const outerPath = useRef<paper.Path | null>(null);
+  const [carPositions, setCarPositions] = useState<Record<string, CarPosition>>({});
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const animationRef = useRef<number | null>(null);
+  const animationStartTime = useRef<number | null>(null);
+  const animationProgress = useRef<number>(0);
+  const carPositionsRef = useRef<Record<string, CarPosition>>({});
+  // Add a flag to prevent useEffect interference during track creation
+  const [isDrawingTrack, setIsDrawingTrack] = useState(false);
+  // Add internal state to track if we have a track (independent of parent's lines state)
+  const [hasTrack, setHasTrack] = useState(false);
 
   useEffect(() => {
     let mounted = true;
 
     const initializePaper = async () => {
+      if (!canvasRef.current) {
+        if (mounted) {
+          console.error('Canvas reference not available');
+        }
+        return;
+      }
+
       try {
-        if (!canvasRef.current) return;
+        // Clean up any existing Paper.js setup
+        if (paper.project) {
+          paper.project.clear();
+        }
         
+        // Initialize Paper.js with the canvas
         paper.setup(canvasRef.current);
-        setPaperLoaded(true);
-        initializePaperTool();
+        
+        if (mounted) {
+          setPaperLoaded(true);
+          initializePaperTool();
+          
+          // Set initial canvas size
+          const updateSize = () => {
+            if (canvasRef.current && paper.view) {
+              const newSize = {
+                width: canvasRef.current.offsetWidth,
+                height: canvasRef.current.offsetHeight,
+              };
+              paper.view.viewSize = new paper.Size(newSize.width, newSize.height);
+            }
+          };
+          updateSize();
+          
+          // Paper.js is initialized and ready
+        }
       } catch (error) {
-        console.error('Failed to initialize Paper.js:', error);
+        if (mounted) {
+          console.error('Failed to initialize Paper.js:', error);
+          setPaperLoaded(false);
+        }
       }
     };
 
@@ -74,25 +139,28 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       if (paper.project) {
         paper.project.clear();
       }
-    };
-  }, []);
-
-  // Handle canvas resize
-  useEffect(() => {
-    const updateSize = () => {
-      if (canvasRef.current && paper.view) {
-        const newSize = {
-          width: canvasRef.current.offsetWidth,
-          height: canvasRef.current.offsetHeight,
-        };
-        paper.view.viewSize = new paper.Size(newSize.width, newSize.height);
+      // Clean up any ongoing animations
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
       }
     };
+  }, []); // Only run on mount
 
-    updateSize();
+  // Separate effect for handling resize
+  useEffect(() => {
+    const updateSize = () => {
+      if (!canvasRef.current || !paper.view || !paperLoaded) return;
+      
+      const newSize = {
+        width: canvasRef.current.offsetWidth,
+        height: canvasRef.current.offsetHeight,
+      };
+      paper.view.viewSize = new paper.Size(newSize.width, newSize.height);
+    };
+
     window.addEventListener("resize", updateSize);
     return () => window.removeEventListener("resize", updateSize);
-  }, [paperLoaded]); // Run when paper is loaded
+  }, [paperLoaded]);
 
   // Helper function to compute normal vector
   const getNormal = (p1: Point, p2: Point): { x: number; y: number } => {
@@ -158,95 +226,52 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     return normals;
   };
 
-  // Helper function to draw track with boundaries
-  const drawTrackWithBoundaries = (points: Point[], isPreview = false, clearExisting = false) => {
-    if (!paper || points.length < 2) return;
+  // Helper function to draw start/finish markers
+  const drawStartFinishMarkers = (points: Point[]) => {
+    if (!paper?.project || points.length < 2) return;
 
-    if (clearExisting && paper.project) {
-      paper.project.activeLayer.removeChildren();
-    }
-
-    // Convert points to Paper.js points
-    const paperPoints = points.map(p => new paper.Point(p.x, p.y));
-    
-    // Calculate uniform normals
-    const normals = calculateUniformNormals(paperPoints);
-    const halfWidth = trackWidth / 2;
-
-    // Create boundary points
-    const leftPoints = paperPoints.map((p, i) => 
-      new paper.Point(p.x + normals[i].x * halfWidth, p.y + normals[i].y * halfWidth)
-    );
-    const rightPoints = paperPoints.map((p, i) => 
-      new paper.Point(p.x - normals[i].x * halfWidth, p.y - normals[i].y * halfWidth)
-    );
-
-    // Draw center line
-    const centerPath = new paper.Path({
-      segments: paperPoints,
-      strokeColor: new paper.Color("#e11d48"), // Red center line
-      strokeWidth: 3,
-      strokeCap: 'round',
-      strokeJoin: 'round'
-    });
-
-    // Draw boundaries
-    const leftPath = new paper.Path({
-      segments: leftPoints,
-      strokeColor: new paper.Color("#2563eb"), // Blue left boundary
-      strokeWidth: 2,
-      strokeCap: 'round',
-      strokeJoin: 'round'
-    });
-
-    const rightPath = new paper.Path({
-      segments: rightPoints,
-      strokeColor: new paper.Color("#16a34a"), // Green right boundary
-      strokeWidth: 2,
-      strokeCap: 'round',
-      strokeJoin: 'round'
-    });
-
-    if (!isPreview) {
-      centerPath.smooth();
-      leftPath.smooth();
-      rightPath.smooth();
-    }
-
-    // Draw start point indicator (green circle with 'S')
+    // Draw start point indicator (bright green circle with 'S')
     const startPoint = points[0];
     const startCircle = new paper.Path.Circle(
       new paper.Point(startPoint.x, startPoint.y),
-      15
+      18
     );
-    startCircle.fillColor = new paper.Color("#22c55e"); // Lighter green
+    startCircle.fillColor = new paper.Color("#00ff00"); // Bright green
+    startCircle.strokeColor = new paper.Color("#000000"); // Black border
+    startCircle.strokeWidth = 3;
+    startCircle.data = { type: 'start_finish', subtype: 'start' };
     
     // Add 'S' text
     const startText = new paper.PointText({
-      point: new paper.Point(startPoint.x - 5, startPoint.y + 5),
+      point: new paper.Point(startPoint.x - 6, startPoint.y + 6),
       content: 'S',
-      fillColor: 'white',
+      fillColor: '#000000', // Black text for contrast
       fontFamily: 'Arial',
       fontWeight: 'bold',
-      fontSize: 14
+      fontSize: 16,
+      data: { type: 'start_finish', subtype: 'start_text' }
     });
 
-    // Draw end point indicator (red circle with 'F' for Finish)
+    // Draw end point indicator (bright red circle with 'F' for Finish)
     const endPoint = points[points.length - 1];
     const endCircle = new paper.Path.Circle(
       new paper.Point(endPoint.x, endPoint.y),
-      15
+      18
     );
-    endCircle.fillColor = new paper.Color("#ef4444"); // Lighter red
+    endCircle.fillColor = new paper.Color("#ff0000"); // Bright red
+    endCircle.strokeColor = new paper.Color("#000000"); // Black border
+    endCircle.strokeWidth = 3;
+    endCircle.data = { type: 'start_finish', subtype: 'finish' };
 
     // Add 'F' text
     const endText = new paper.PointText({
-      point: new paper.Point(endPoint.x - 5, endPoint.y + 5),
+      point: new paper.Point(endPoint.x - 6, endPoint.y + 6),
       content: 'F',
-      fillColor: 'white',
+      fillColor: '#000000', // Black text for contrast
       fontFamily: 'Arial',
       fontWeight: 'bold',
-      fontSize: 14
+      fontSize: 16,
+      data: { type: 'start_finish', subtype: 'finish_text' }
     });
 
     // Draw direction arrow near the start
@@ -257,8 +282,9 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       const arrowAngle = Math.atan2(arrowEnd.y - arrowStart.y, arrowEnd.x - arrowStart.x);
       
       const arrowPath = new paper.Path();
-      arrowPath.strokeColor = new paper.Color("#22c55e"); // Green
-      arrowPath.strokeWidth = 3;
+      arrowPath.strokeColor = new paper.Color("#00ff00"); // Bright green
+      arrowPath.strokeWidth = 4;
+      arrowPath.data = { type: 'start_finish', subtype: 'arrow' };
       
       // Arrow shaft
       const shaftStart = new paper.Point(
@@ -297,19 +323,216 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     }
   };
 
-  // Draw lines when they change
-  useEffect(() => {
-    if (!paperLoaded || !paper?.project) return;
+  // Helper function to draw track with boundaries
+  const drawTrackWithBoundaries = (points: Point[], isPreview = false, clearExisting = false) => {
+    console.log(`[drawTrackWithBoundaries] Drawing track with ${points.length} points, isPreview: ${isPreview}, clearExisting: ${clearExisting}`);
+    
+    if (!paper) {
+      console.warn('[drawTrackWithBoundaries] Paper.js not initialized');
+      return;
+    }
+    
+    if (!paper.project) {
+      console.warn('[drawTrackWithBoundaries] Paper.js project not available');
+      return;
+    }
+    
+    if (!Array.isArray(points)) {
+      console.warn('[drawTrackWithBoundaries] Invalid points array');
+      return;
+    }
 
-    // Clear existing paths
-    paper.project.activeLayer.removeChildren();
+    if (points.length < 2) {
+      console.warn(`[drawTrackWithBoundaries] Not enough points to draw track (${points.length})`);
+      return;
+    }
 
-    // Draw all lines
-    lines.forEach(line => {
-      if (line.length < 2) return;
-      drawTrackWithBoundaries(line, false, false);
+    if (clearExisting && paper.project) {
+      paper.project.activeLayer.removeChildren();
+    }
+
+    // Convert points to Paper.js points
+    const paperPoints = points.map(p => new paper.Point(p.x, p.y));
+    
+    // Calculate uniform normals
+    const normals = calculateUniformNormals(paperPoints);
+    const halfWidth = (trackWidth * METERS_TO_PIXELS) / 2; // Scale track width to pixels
+
+    // Create boundary points
+    const leftPoints = paperPoints.map((p, i) => 
+      new paper.Point(p.x + normals[i].x * halfWidth, p.y + normals[i].y * halfWidth)
+    );
+    const rightPoints = paperPoints.map((p, i) => 
+      new paper.Point(p.x - normals[i].x * halfWidth, p.y - normals[i].y * halfWidth)
+    );
+
+    // Draw center line with bright, visible colors
+    const centerPath = new paper.Path({
+      segments: paperPoints,
+      strokeColor: new paper.Color("#ff0000"), // Bright red center line
+      strokeWidth: 3,
+      strokeCap: 'round',
+      strokeJoin: 'round',
+      data: { type: 'track', subtype: 'center' }
     });
-  }, [lines, paperLoaded, trackWidth]);
+
+    // Draw boundaries with bright, visible colors
+    const leftPath = new paper.Path({
+      segments: leftPoints,
+      strokeColor: new paper.Color("#0000ff"), // Bright blue left boundary
+      strokeWidth: 2,
+      strokeCap: 'round',
+      strokeJoin: 'round',
+      data: { type: 'track', subtype: 'left' }
+    });
+
+    const rightPath = new paper.Path({
+      segments: rightPoints,
+      strokeColor: new paper.Color("#00ff00"), // Bright green right boundary
+      strokeWidth: 2,
+      strokeCap: 'round',
+      strokeJoin: 'round',
+      data: { type: 'track', subtype: 'right' }
+    });
+
+    if (!isPreview) {
+      centerPath.smooth();
+      leftPath.smooth();
+      rightPath.smooth();
+    }
+
+    // Draw start point indicator (bright green circle with 'S')
+    const startPoint = points[0];
+    const startCircle = new paper.Path.Circle(
+      new paper.Point(startPoint.x, startPoint.y),
+      18
+    );
+    startCircle.fillColor = new paper.Color("#00ff00"); // Bright green
+    startCircle.strokeColor = new paper.Color("#000000"); // Black border
+    startCircle.strokeWidth = 3;
+    startCircle.data = { type: 'start_finish', subtype: 'start' };
+    
+    // Add 'S' text
+    const startText = new paper.PointText({
+      point: new paper.Point(startPoint.x - 6, startPoint.y + 6),
+      content: 'S',
+      fillColor: '#000000', // Black text for contrast
+      fontFamily: 'Arial',
+      fontWeight: 'bold',
+      fontSize: 16,
+      data: { type: 'start_finish', subtype: 'start_text' }
+    });
+
+    // Draw end point indicator (bright red circle with 'F' for Finish)
+    const endPoint = points[points.length - 1];
+    const endCircle = new paper.Path.Circle(
+      new paper.Point(endPoint.x, endPoint.y),
+      18
+    );
+    endCircle.fillColor = new paper.Color("#ff0000"); // Bright red
+    endCircle.strokeColor = new paper.Color("#000000"); // Black border
+    endCircle.strokeWidth = 3;
+    endCircle.data = { type: 'start_finish', subtype: 'finish' };
+
+    // Add 'F' text
+    const endText = new paper.PointText({
+      point: new paper.Point(endPoint.x - 6, endPoint.y + 6),
+      content: 'F',
+      fillColor: '#000000', // Black text for contrast
+      fontFamily: 'Arial',
+      fontWeight: 'bold',
+      fontSize: 16,
+      data: { type: 'start_finish', subtype: 'finish_text' }
+    });
+
+    // Draw direction arrow near the start
+    if (points.length > 1) {
+      const arrowStart = points[0];
+      const arrowEnd = points[1];
+      const arrowLength = 30;
+      const arrowAngle = Math.atan2(arrowEnd.y - arrowStart.y, arrowEnd.x - arrowStart.x);
+      
+      const arrowPath = new paper.Path();
+      arrowPath.strokeColor = new paper.Color("#00ff00"); // Bright green
+      arrowPath.strokeWidth = 4;
+      arrowPath.data = { type: 'start_finish', subtype: 'arrow' };
+      
+      // Arrow shaft
+      const shaftStart = new paper.Point(
+        arrowStart.x + 25 * Math.cos(arrowAngle),
+        arrowStart.y + 25 * Math.sin(arrowAngle)
+      );
+      const shaftEnd = new paper.Point(
+        shaftStart.x + arrowLength * Math.cos(arrowAngle),
+        shaftStart.y + arrowLength * Math.sin(arrowAngle)
+      );
+      
+      arrowPath.moveTo(shaftStart);
+      arrowPath.lineTo(shaftEnd);
+      
+      // Arrow head
+      const headSize = 10;
+      const headAngle = Math.PI / 6; // 30 degrees
+      
+      const headLeft = new paper.Point(
+        shaftEnd.x - headSize * Math.cos(arrowAngle + headAngle),
+        shaftEnd.y - headSize * Math.sin(arrowAngle + headAngle)
+      );
+      const headRight = new paper.Point(
+        shaftEnd.x - headSize * Math.cos(arrowAngle - headAngle),
+        shaftEnd.y - headSize * Math.sin(arrowAngle - headAngle)
+      );
+      
+      arrowPath.moveTo(headLeft);
+      arrowPath.lineTo(shaftEnd);
+      arrowPath.lineTo(headRight);
+    }
+
+    // Force a redraw
+    if (paper.view) {
+      paper.view.requestUpdate();
+    }
+    
+    console.log(`[drawTrackWithBoundaries] Track drawn successfully with ${points.length} points. Canvas children count:`, paper.project.activeLayer.children.length);
+  };
+
+  // TEMPORARILY DISABLED - Draw lines when they change (but only if not already drawn by handleMouseUp)
+  // useEffect(() => {
+  //   if (!paperLoaded || !paper?.project) return;
+
+  //   // Check if we already have track elements (from handleMouseUp)
+  //   const existingTrackElements = paper.project.activeLayer.children.filter(child => 
+  //     child.data && (child.data.type === 'track' || child.data.type === 'start_finish')
+  //   );
+
+  //   // If we have the right number of elements for the current lines, don't redraw
+  //   if (existingTrackElements.length > 0 && lines.length > 0) {
+  //     console.log('[Track Drawing useEffect] Track already exists, skipping redraw');
+  //     return;
+  //   }
+
+  //   // Clear existing track elements from the main layer only (preserve car layer)
+  //   if (paper.project.activeLayer) {
+  //     // Remove only track-related elements, not car elements
+  //     const itemsToRemove = paper.project.activeLayer.children.filter(child => 
+  //       child.data && (child.data.type === 'track' || child.data.type === 'start_finish')
+  //     );
+  //     itemsToRemove.forEach(item => item.remove());
+  //   }
+
+  //   // Draw all lines
+  //   lines.forEach((line, index) => {
+  //     if (!Array.isArray(line)) {
+  //       console.warn(`[Track Drawing] Invalid line at index ${index}`);
+  //       return;
+  //     }
+  //     if (line.length < 2) {
+  //       console.warn(`[Track Drawing] Insufficient points at index ${index} (${line.length} points)`);
+  //       return;
+  //     }
+  //     drawTrackWithBoundaries(line, false, false);
+  //   });
+  // }, [lines, paperLoaded, trackWidth]);
 
   const initializePaperTool = () => {
     if (!paper.project) return;
@@ -324,6 +547,25 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
   const handleMouseDown = (event: paper.ToolEvent) => {
     if (!paper.project) return;
     
+    console.log('[handleMouseDown] Starting draw, current children:', paper.project.activeLayer.children.length);
+    
+    // Set flag to prevent useEffect interference
+    setIsDrawingTrack(true);
+    
+    // Clear any existing track if we have one
+    if (hasTrack) {
+      console.log('[handleMouseDown] Clearing existing track');
+      const existingTrackElements = paper.project.activeLayer.children.filter(child => 
+        child.data?.type === 'track_permanent' || 
+        child.data?.type === 'track' ||
+        child.data?.type === 'completion_preview' ||
+        child.data?.subtype === 'start_finish'
+      );
+      existingTrackElements.forEach(element => element.remove());
+      console.log('[handleMouseDown] Removed', existingTrackElements.length, 'existing track elements');
+      setHasTrack(false);
+    }
+    
     const hitResult = paper.project.hitTest(event.point, {
       segments: true,
       stroke: true,
@@ -336,7 +578,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
 
     currentPath.current = new paper.Path({
       segments: [event.point],
-      strokeColor: new paper.Color('#e11d48'), // Red center line
+      strokeColor: new paper.Color('#666666'), // Gray center line
       strokeWidth: 3,
       strokeCap: 'round',
       strokeJoin: 'round',
@@ -344,7 +586,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     });
 
     innerPath.current = new paper.Path({
-      strokeColor: new paper.Color('#2563eb'), // Blue left boundary
+      strokeColor: new paper.Color('#333333'), // Dark gray left boundary
       strokeWidth: 2,
       strokeCap: 'round',
       strokeJoin: 'round',
@@ -352,12 +594,14 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     });
 
     outerPath.current = new paper.Path({
-      strokeColor: new paper.Color('#16a34a'), // Green right boundary
+      strokeColor: new paper.Color('#333333'), // Dark gray right boundary
       strokeWidth: 2,
       strokeCap: 'round',
       strokeJoin: 'round',
       fullySelected: false
     });
+    
+    console.log('[handleMouseDown] Created paths, total children:', paper.project.activeLayer.children.length);
   };
 
   const handleMouseDrag = (event: paper.ToolEvent) => {
@@ -370,6 +614,13 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     }
 
     currentPath.current.add(event.point);
+    
+    // Every 10th point, log the canvas state
+    if (currentPath.current.segments.length % 10 === 0) {
+      console.log('[handleMouseDrag] Canvas state at', currentPath.current.segments.length, 'points:', {
+        totalChildren: paper.project.activeLayer.children.length
+      });
+    }
     
     // Apply smoothing to the current path
     if (currentPath.current.segments.length > 2) {
@@ -399,7 +650,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       
       // Calculate uniform normals
       const normals = calculateUniformNormals(points);
-      const halfWidth = trackWidth / 2;
+      const halfWidth = (trackWidth * METERS_TO_PIXELS) / 2; // Scale track width to pixels
 
       // Update boundary paths
       innerPath.current.removeSegments();
@@ -429,114 +680,941 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     }
   };
 
-  // Helper function to calculate curvature
+  // Calculate curvature for a series of points
   const calculateCurvature = (points: Point[]): number[] => {
+    if (!points || points.length < 3) return new Array(points?.length || 0).fill(0);
+
     const curvature: number[] = [];
     
-    if (points.length < 3) {
-      return curvature;
-    }
-
-    for (let i = 1; i < points.length - 1; i++) {
+    for (let i = 0; i < points.length; i++) {
+      if (i === 0 || i === points.length - 1) {
+        curvature.push(0);
+        continue;
+      }
+      
       const prev = points[i - 1];
       const curr = points[i];
       const next = points[i + 1];
-
+      
       // Calculate vectors
       const v1 = { x: curr.x - prev.x, y: curr.y - prev.y };
       const v2 = { x: next.x - curr.x, y: next.y - curr.y };
-
-      // Calculate lengths
+      
+      // Calculate vector lengths
       const l1 = Math.sqrt(v1.x * v1.x + v1.y * v1.y);
       const l2 = Math.sqrt(v2.x * v2.x + v2.y * v2.y);
-
+      
+      if (l1 === 0 || l2 === 0) {
+        curvature.push(0);
+        continue;
+      }
+      
       // Calculate angle between vectors
       const dot = v1.x * v2.x + v1.y * v2.y;
       const cross = v1.x * v2.y - v1.y * v2.x;
       const angle = Math.atan2(cross, dot);
-
-      // Calculate curvature (1/radius)
-      const k = 2 * Math.sin(angle) / l1;
-      curvature.push(k);
+      
+      // Calculate curvature as 1/radius
+      const radius = (l1 + l2) / (2 * Math.sin(angle));
+      curvature.push(Math.abs(angle) < 0.01 ? 0 : 1 / radius);
     }
-
-    // Add start and end points with same curvature as their neighbors
-    curvature.unshift(curvature[0]);
-    curvature.push(curvature[curvature.length - 1]);
-
+    
     return curvature;
   };
 
   // Update handleMouseUp to calculate and send track data
+  // Track closure functionality
+  const closeTrackSmoothly = (points: Point[]): Point[] => {
+    if (points.length < 3) return points;
+    
+    const startPoint = points[0];
+    const endPoint = points[points.length - 1];
+    const dx = endPoint.x - startPoint.x;
+    const dy = endPoint.y - startPoint.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // If the gap is small, connect directly
+    if (distance < 50) {
+      return [...points, startPoint];
+    }
+    
+    // For larger gaps, use cubic Bezier interpolation
+    const numInterpolationPoints = Math.ceil(distance / 20);
+    const interpolatedPoints: Point[] = [];
+    
+    // Calculate control points for smooth connection
+    const secondPoint = points[1];
+    const secondLastPoint = points[points.length - 2];
+    
+    // Direction vectors
+    const startDir = { x: secondPoint.x - startPoint.x, y: secondPoint.y - startPoint.y };
+    const endDir = { x: endPoint.x - secondLastPoint.x, y: endPoint.y - secondLastPoint.y };
+    
+    // Normalize directions
+    const startDirLen = Math.sqrt(startDir.x * startDir.x + startDir.y * startDir.y) || 1;
+    const endDirLen = Math.sqrt(endDir.x * endDir.x + endDir.y * endDir.y) || 1;
+    
+    startDir.x /= startDirLen;
+    startDir.y /= startDirLen;
+    endDir.x /= endDirLen;
+    endDir.y /= endDirLen;
+    
+    // Control points for Bezier curve
+    const controlDistance = distance * 0.3;
+    const cp1 = {
+      x: endPoint.x + endDir.x * controlDistance,
+      y: endPoint.y + endDir.y * controlDistance
+    };
+    const cp2 = {
+      x: startPoint.x - startDir.x * controlDistance,
+      y: startPoint.y - startDir.y * controlDistance
+    };
+    
+    // Generate interpolated points using cubic Bezier
+    for (let i = 1; i <= numInterpolationPoints; i++) {
+      const t = i / (numInterpolationPoints + 1);
+      const t2 = t * t;
+      const t3 = t2 * t;
+      const mt = 1 - t;
+      const mt2 = mt * mt;
+      const mt3 = mt2 * mt;
+      
+      const x = mt3 * endPoint.x + 3 * mt2 * t * cp1.x + 3 * mt * t2 * cp2.x + t3 * startPoint.x;
+      const y = mt3 * endPoint.y + 3 * mt2 * t * cp1.y + 3 * mt * t2 * cp2.y + t3 * startPoint.y;
+      
+      interpolatedPoints.push({ x, y });
+    }
+    
+    return [...points, ...interpolatedPoints, startPoint];
+  };
+
   const handleMouseUp = () => {
     if (!currentPath.current || currentPath.current.segments.length < 2) return;
 
-    // Convert Paper.js points to our Point type
-    const points: Point[] = currentPath.current.segments.map(seg => ({
+    console.log('[handleMouseUp] BEFORE - Canvas state:', {
+      totalChildren: paper.project.activeLayer.children.length,
+      currentPathVisible: currentPath.current.visible,
+      currentPathSegments: currentPath.current.segments.length
+    });
+
+    console.log('[handleMouseUp] Starting track finalization with AUTO-COMPLETION');
+
+    // Get the points from the current path
+    let points: Point[] = currentPath.current.segments.map(seg => ({
       x: seg.point.x,
       y: seg.point.y
     }));
 
-    // Calculate track length in kilometers
-    let length = 0;
-    for (let i = 1; i < points.length; i++) {
-      const dx = points[i].x - points[i-1].x;
-      const dy = points[i].y - points[i-1].y;
-      length += Math.sqrt(dx * dx + dy * dy);
+    console.log('[handleMouseUp] Extracted points before closure:', points.length);
+
+    // AUTO-COMPLETE: Close the track to create a proper racing circuit
+    if (points.length >= 3) {
+      const startPoint = points[0];
+      const endPoint = points[points.length - 1];
+      const dx = endPoint.x - startPoint.x;
+      const dy = endPoint.y - startPoint.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      console.log('[handleMouseUp] Auto-completing track - gap distance:', distance.toFixed(2), 'pixels');
+      
+      // Show visual feedback for the completion
+      if (distance > 10) { // Only show feedback if there's a meaningful gap
+        // Create a temporary dashed line to show the completion
+        const completionLine = new paper.Path();
+        completionLine.add(new paper.Point(endPoint.x, endPoint.y));
+        completionLine.add(new paper.Point(startPoint.x, startPoint.y));
+        completionLine.strokeColor = new paper.Color('#888888');
+        completionLine.strokeWidth = 2;
+        completionLine.dashArray = [10, 5]; // Dashed line
+        completionLine.opacity = 0.7;
+        completionLine.data = { type: 'completion_preview' };
+        
+        // Brief flash to show the completion
+        setTimeout(() => {
+          if (completionLine.parent) {
+            completionLine.remove();
+          }
+        }, 500);
+      }
+      
+      points = closeTrackSmoothly(points);
+      console.log('[handleMouseUp] Track auto-completed, final points:', points.length);
+      
+      // Update the current path to show the closed track
+      currentPath.current.removeSegments();
+      points.forEach(point => {
+        currentPath.current!.add(new paper.Point(point.x, point.y));
+      });
+      
+      // Also update the boundary paths to be closed
+      if (innerPath.current && outerPath.current) {
+        // Clear existing boundary paths
+        innerPath.current.removeSegments();
+        outerPath.current.removeSegments();
+        
+        // Recalculate boundaries for the closed track
+        const paperPoints = points.map(p => new paper.Point(p.x, p.y));
+        const normals = calculateUniformNormals(paperPoints);
+        const halfWidth = (trackWidth * METERS_TO_PIXELS) / 2; // Use the same scaling as in drag
+        
+        // Create closed boundary paths
+        paperPoints.forEach((point, i) => {
+          const normal = normals[i];
+          const innerPoint = point.add(normal.multiply(halfWidth));
+          const outerPoint = point.subtract(normal.multiply(halfWidth));
+          
+          innerPath.current!.add(innerPoint);
+          outerPath.current!.add(outerPoint);
+        });
+        
+        // Smooth the completed boundary paths
+        innerPath.current.smooth();
+        outerPath.current.smooth();
+      }
     }
-    const lengthKm = length / 1000; // Convert to kilometers
 
-    // Calculate curvature
-    const curvature = calculateCurvature(points);
+    console.log('[handleMouseUp] Extracted points after auto-completion:', points.length);
 
-    // Update track length
-    if (onTrackLengthChange) {
-      onTrackLengthChange(lengthKm);
+    // FIXED: Keep the boundary lines as the actual track, modify center line as guide
+    if (currentPath.current) {
+      // Make the center line a thin guide line
+      currentPath.current.strokeColor = new paper.Color('#999999'); // Light gray
+      currentPath.current.strokeWidth = 1; // Make it thinner as a guide
+      currentPath.current.data = { type: 'track_permanent', subtype: 'center_guide' };
+      
+      console.log('[handleMouseUp] Made center path a guide line:', {
+        visible: currentPath.current.visible,
+        segments: currentPath.current.segments.length,
+        strokeColor: currentPath.current.strokeColor.toString(),
+        strokeWidth: currentPath.current.strokeWidth
+      });
     }
 
-    // Update track data
-    if (onTrackUpdate) {
-      onTrackUpdate(points, curvature, lengthKm);
+    // Add start/finish line marker
+    if (points.length >= 2) {
+      const startPoint = points[0];
+      const secondPoint = points[1];
+      
+      // Calculate perpendicular direction for start/finish line
+      const dx = secondPoint.x - startPoint.x;
+      const dy = secondPoint.y - startPoint.y;
+      const length = Math.sqrt(dx * dx + dy * dy);
+      
+      if (length > 0) {
+        // Normalize and rotate 90 degrees
+        const perpX = -dy / length;
+        const perpY = dx / length;
+        
+        // Create start/finish line across the track width
+        const lineLength = (trackWidth * METERS_TO_PIXELS) * 0.8; // Slightly shorter than track width
+        const startFinishLine = new paper.Path();
+        startFinishLine.add(new paper.Point(
+          startPoint.x + perpX * lineLength / 2,
+          startPoint.y + perpY * lineLength / 2
+        ));
+        startFinishLine.add(new paper.Point(
+          startPoint.x - perpX * lineLength / 2,
+          startPoint.y - perpY * lineLength / 2
+        ));
+        startFinishLine.strokeColor = new paper.Color('#000000'); // Black
+        startFinishLine.strokeWidth = 4;
+        startFinishLine.data = { type: 'track_permanent', subtype: 'start_finish' };
+        
+        console.log('[handleMouseUp] Added start/finish line marker');
+      }
     }
 
-    // Clear the current path
+    // Keep the boundary paths as the actual track boundaries
+    if (innerPath.current) {
+      innerPath.current.strokeColor = new paper.Color('#222222'); // Dark gray
+      innerPath.current.strokeWidth = 3; // Make boundaries thicker
+      innerPath.current.data = { type: 'track_permanent', subtype: 'left_boundary' };
+      console.log('[handleMouseUp] Made inner path permanent boundary');
+    }
+    
+    if (outerPath.current) {
+      outerPath.current.strokeColor = new paper.Color('#222222'); // Dark gray
+      outerPath.current.strokeWidth = 3; // Make boundaries thicker
+      outerPath.current.data = { type: 'track_permanent', subtype: 'right_boundary' };
+      console.log('[handleMouseUp] Made outer path permanent boundary');
+    }
+
+    console.log('[handleMouseUp] MIDDLE - Canvas state after making all paths permanent:', {
+      totalChildren: paper.project.activeLayer.children.length
+    });
+
+    // Don't remove the boundary paths - they ARE the track!
+    // Clear references but keep the paths
+    innerPath.current = null;
+    outerPath.current = null;
+    // Keep currentPath.current reference since we're not removing it
+
+    // DISABLE setLines - it's causing canvas clearing
+    // setLines([points]);
+    console.log('[handleMouseUp] DISABLED setLines to prevent canvas clearing');
+    
+    // Store track points internally for car positioning
+    setInternalTrackPoints(points);
+    console.log('[handleMouseUp] Stored', points.length, 'track points internally');
+    
+    // Clear the drawing flag immediately since we're not updating state
+    setIsDrawingTrack(false);
+    // Set hasTrack flag to indicate we now have a track
+    setHasTrack(true);
+    console.log('[handleMouseUp] Cleared drawing flag immediately and set hasTrack=true');
+
+    console.log('[handleMouseUp] AFTER setLines:', {
+      totalChildren: paper.project.activeLayer.children.length
+    });
+
+    // Force redraw
+    if (paper.view) {
+      paper.view.requestUpdate();
+    }
+
+    console.log('[handleMouseUp] FINAL - Canvas state:', {
+      totalChildren: paper.project.activeLayer.children.length,
+      childrenTypes: paper.project.activeLayer.children.map(child => child.data?.type || 'unknown'),
+      trackElements: paper.project.activeLayer.children.filter(child => 
+        child.data?.type === 'track_permanent' || child.data?.subtype
+      ).map(child => ({
+        type: child.data?.type,
+        subtype: child.data?.subtype,
+        visible: child.visible,
+        strokeColor: child.strokeColor?.toString(),
+        strokeWidth: child.strokeWidth
+      }))
+    });
+  };
+
+  // Helper function to calculate car angle
+  const calculateCarAngle = (p1: number[], p2: number[]): number => {
+    return Math.atan2(p2[1] - p1[1], p2[0] - p1[0]);
+  };
+
+  // Store track points internally for car positioning
+  const [internalTrackPoints, setInternalTrackPoints] = useState<Point[]>([]);
+
+  // Effect to handle car positions when cars are added or removed
+  useEffect(() => {
+    console.log('[Car Position useEffect] Triggered - paper:', !!paper, 'paperLoaded:', paperLoaded, 'hasTrack:', hasTrack, 'trackPoints:', internalTrackPoints.length, 'cars:', cars.length);
+    
+    if (!paper || !paperLoaded || !hasTrack || internalTrackPoints.length === 0 || !paper.project || !paper.project.layers) {
+      console.log('[Car Position useEffect] Early return - missing requirements');
+      return;
+    }
+
+    // Get the starting point from the internal track points
+    const startPoint = internalTrackPoints[0];
+    if (!startPoint) {
+      console.log('[Car Position useEffect] No start point available');
+      return;
+    }
+
+    console.log('[Car Position useEffect] Initializing car positions, hasTrack:', hasTrack, 'trackPoints:', internalTrackPoints.length);
+    if (paper.project.layers && paper.project.layers[0]) {
+      console.log('[Car Position useEffect] Main layer children before car positioning:', paper.project.layers[0].children.length);
+    }
+
+    // Initialize positions for new cars
+    setCarPositions(prevPositions => {
+      const newPositions: Record<string, CarPosition> = {};
+      cars.forEach((car) => {
+        if (!prevPositions[car.id]) {
+          newPositions[car.id] = {
+            x: startPoint.x,
+            y: startPoint.y,
+            angle: internalTrackPoints[1] ? calculateCarAngle(
+              [startPoint.x, startPoint.y],
+              [internalTrackPoints[1].x, internalTrackPoints[1].y]
+            ) : 0,
+            speed: 0
+          };
+          console.log('[Car Position useEffect] Initialized car position for', car.id, 'at', startPoint);
+        } else {
+          newPositions[car.id] = prevPositions[car.id];
+        }
+      });
+      return newPositions;
+    });
+  }, [cars, hasTrack, internalTrackPoints, paperLoaded]); // Use internal track state instead of lines
+
+  // Enhanced animation system with 60 FPS and realistic car movement
+  const startAnimation = (results: any) => {
+    if (!paper || !results?.optimal_lines) return;
+
+    // Clear any existing car elements from the car layer only (NOT from main layer)
+    const carLayer = paper.project.layers.find(layer => layer.data?.type === 'car_layer');
+    if (carLayer) {
+      carLayer.removeChildren();
+      console.log('[startAnimation] Cleared car layer, car layer children:', carLayer.children.length);
+    }
+    
+    // Also clear any car elements that might be on the main layer (legacy cleanup)
+    if (paper.project.layers && paper.project.layers[0]) {
+      paper.project.layers[0].children
+        .filter(child => child.data?.type === 'car' || child.data?.type === 'speed' || child.data?.type === 'smoke' || child.data?.type === 'racing_line')
+        .forEach(child => child.remove());
+      
+      console.log('[startAnimation] Main layer children after cleanup:', paper.project.layers[0].children.length);
+    }
+
+    // Draw the racing line path on the main layer (behind track)
+    const originalLayer = paper.project.activeLayer;
+    if (paper.project.layers && paper.project.layers[0]) {
+      paper.project.layers[0].activate(); // Ensure racing line goes on main layer
+    }
+    
+    results.optimal_lines.forEach((result: any) => {
+      const { coordinates } = result;
+      if (coordinates && coordinates.length > 1) {
+        const racingLinePath = new paper.Path({
+          segments: coordinates.map((coord: number[]) => new paper.Point(coord[0], coord[1])),
+          strokeColor: new paper.Color('#000000'), // Black racing line
+          strokeWidth: 2,
+          strokeCap: 'round',
+          strokeJoin: 'round',
+          data: { type: 'racing_line' }
+        });
+        racingLinePath.smooth();
+        // Send racing line to back so it appears behind the track
+        racingLinePath.sendToBack();
+      }
+    });
+    
+    // Restore original layer
+    originalLayer.activate();
+
+    let startTime: number | null = null;
+    const duration = 15000; // 15 seconds per lap for smoother viewing
+    let isRunning = true;
+
+    const animate = (timestamp: number) => {
+      if (!isRunning) return;
+      
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      // Continuous loop - no visible restart
+      const progress = (elapsed % duration) / duration;
+
+      // Update car positions for smooth interpolation
+      const newPositions: Record<string, CarPosition> = {};
+
+      results.optimal_lines.forEach((result: any) => {
+        const { car_id, coordinates, speeds } = result;
+        const totalPoints = coordinates.length;
+        
+        // Make it truly continuous by wrapping around
+        const floatIndex = progress * totalPoints;
+        const currentIndex = Math.floor(floatIndex) % totalPoints;
+        const nextIndex = (currentIndex + 1) % totalPoints;
+        const currentPos = coordinates[currentIndex];
+        const nextPos = coordinates[nextIndex];
+        const currentSpeed = speeds?.[currentIndex] || 0;
+
+        if (currentPos && nextPos) {
+          // Smooth interpolation between points with wrapping
+          const localProgress = floatIndex - Math.floor(floatIndex);
+          const x = currentPos[0] + (nextPos[0] - currentPos[0]) * localProgress;
+          const y = currentPos[1] + (nextPos[1] - currentPos[1]) * localProgress;
+          
+          // Calculate car angle based on movement direction
+          const angle = Math.atan2(nextPos[1] - currentPos[1], nextPos[0] - currentPos[0]);
+          
+          newPositions[car_id] = {
+            x,
+            y,
+            angle,
+            speed: currentSpeed
+          };
+        }
+      });
+
+      // Update car positions (this will trigger redraw via useEffect)
+      setCarPositions(newPositions);
+      carPositionsRef.current = newPositions;
+
+      // Update animation progress for progress bar
+      animationProgress.current = progress;
+      
+      if (isRunning) {
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    };
+
+    // Store the stop function
+    animationRef.current = requestAnimationFrame(animate);
+    
+    // Return a function to stop the animation
+    return () => {
+      isRunning = false;
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+      // Clean up car elements from car layer
+      if (paper && paper.project) {
+        const carLayer = paper.project.layers.find(layer => layer.data?.type === 'car_layer');
+        if (carLayer) {
+          carLayer.removeChildren();
+          console.log('[startAnimation cleanup] Cleared car layer, car layer children:', carLayer.children.length);
+        }
+        
+        // Also clean up any car elements from main layer (legacy cleanup)
+        if (paper.project.layers && paper.project.layers[0]) {
+          paper.project.layers[0].children
+            .filter(child => child.data?.type === 'car' || child.data?.type === 'speed' || child.data?.type === 'smoke' || child.data?.type === 'racing_line')
+            .forEach(child => child.remove());
+          console.log('[startAnimation cleanup] Main layer children after cleanup:', paper.project.layers[0].children.length);
+        }
+      }
+    };
+  };
+
+  // Store the stop function
+  const stopAnimationRef = useRef<(() => void) | null>(null);
+
+  // Handle simulation and animation
+  const handleAnimateClick = useCallback(async () => {
+    console.log('Play button clicked');
+
+    // If we're currently animating, stop it
+    if (isAnimating) {
+      console.log('Stopping animation');
+      setIsAnimating(false);
+      if (stopAnimationRef.current) {
+        stopAnimationRef.current();
+        stopAnimationRef.current = null;
+      }
+      // Clear all car-related elements from canvas (but NOT track elements)
+      if (paper) {
+        const carLayer = paper.project.layers.find(layer => layer.data?.type === 'car_layer');
+        if (carLayer) {
+          carLayer.removeChildren();
+          console.log('[handleAnimateClick] Cleared car layer, car layer children:', carLayer.children.length);
+        }
+        
+        // Also clean up any car elements from main layer (legacy cleanup)
+        if (paper.project.layers && paper.project.layers[0]) {
+          paper.project.layers[0].children
+            .filter(child => child.data?.type === 'car' || child.data?.type === 'speed' || child.data?.type === 'smoke' || child.data?.type === 'racing_line')
+          .forEach(child => child.remove());
+          console.log('[handleAnimateClick] Main layer children after cleanup:', paper.project.layers[0].children.length);
+        }
+        paper.view.requestUpdate();
+      }
+      // Reset car positions
+      setCarPositions({});
+      return;
+    }
+
+    // Run simulation
+    console.log('Starting new simulation');
+    if (!internalTrackPoints || internalTrackPoints.length < 2) {
+      console.error('No valid track to simulate');
+      return;
+    }
+
+    if (!cars.length) {
+      console.error('No cars to simulate');
+      return;
+    }
+
+    setIsSimulating(true);
+    try {
+      const trackPoints = internalTrackPoints;
+      const requestData = {
+        track_points: trackPoints.map(p => ({ x: p.x, y: p.y })),
+        width: trackWidth,
+        friction: 0.7,
+        cars: cars,
+        model: selectedModel
+      };
+
+      console.log('Sending simulation request:', requestData);
+
+      const response = await fetch('http://localhost:8000/simulate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      console.log('Received response:', response);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Simulation failed:', errorText);
+        throw new Error(`Simulation failed: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('Simulation results:', data);
+      
+      if (onSimulationResults && data) {
+        onSimulationResults(data);
+      }
+
+      // Start animation with the results
+      setIsAnimating(true);
+      const stopAnimation = startAnimation(data);
+      stopAnimationRef.current = stopAnimation || null;
+
+    } catch (error) {
+      console.error('Error during simulation:', error);
+    } finally {
+      setIsSimulating(false);
+    }
+  }, [isAnimating, internalTrackPoints, cars, trackWidth, selectedModel, onSimulationResults, paper]);
+
+  // Clean up animation on unmount
+  useEffect(() => {
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, []);
+
+  // Create realistic F1 car with proper proportions and features
+  const createF1Car = (position: CarPosition, car: Car) => {
+    const carLength = 19; // F1 car length in pixels (scaled from ~5m)
+    const carWidth = 4.4; // F1 car width in pixels (scaled from ~2m)
+    
+    // Get car colors
+    const primaryColor = car.car_color || '#e11d48';
+    const accentColor = car.accent_color || '#ffffff';
+    const tireColor = car.tire_compound === 'soft' ? '#ff0000' : 
+                     car.tire_compound === 'medium' ? '#ffff00' : '#ffffff';
+    
+    // Create shadow first (behind car)
+    const shadowOffset = 0.3;
+    const carShadow = new paper.Path();
+    
+    // F1 car body outline (shadow)
+    carShadow.add(new paper.Point(position.x + carLength/2 + shadowOffset, position.y + shadowOffset)); // Sharp nose
+    carShadow.add(new paper.Point(position.x + carLength/3 + shadowOffset, position.y + carWidth/4 + shadowOffset)); // Nose widening
+    carShadow.add(new paper.Point(position.x + carLength/6 + shadowOffset, position.y + carWidth/2 + shadowOffset)); // Front wing area
+    carShadow.add(new paper.Point(position.x - carLength/6 + shadowOffset, position.y + carWidth/2 + shadowOffset)); // Sidepod
+    carShadow.add(new paper.Point(position.x - carLength/3 + shadowOffset, position.y + carWidth/3 + shadowOffset)); // Coke bottle shape
+    carShadow.add(new paper.Point(position.x - carLength/2 + shadowOffset, position.y + carWidth/4 + shadowOffset)); // Rear wing
+    carShadow.add(new paper.Point(position.x - carLength/2 + shadowOffset, position.y - carWidth/4 + shadowOffset)); // Rear wing (other side)
+    carShadow.add(new paper.Point(position.x - carLength/3 + shadowOffset, position.y - carWidth/3 + shadowOffset)); // Coke bottle shape
+    carShadow.add(new paper.Point(position.x - carLength/6 + shadowOffset, position.y - carWidth/2 + shadowOffset)); // Sidepod
+    carShadow.add(new paper.Point(position.x + carLength/6 + shadowOffset, position.y - carWidth/2 + shadowOffset)); // Front wing area
+    carShadow.add(new paper.Point(position.x + carLength/3 + shadowOffset, position.y - carWidth/4 + shadowOffset)); // Nose widening
+    
+    carShadow.closed = true;
+    carShadow.fillColor = new paper.Color(0, 0, 0, 0.3); // Semi-transparent black
+    carShadow.data = { type: 'car', id: car.id };
+    
+    // Main F1 car body
+    const carBody = new paper.Path();
+    
+    // F1 car body outline with proper proportions
+    carBody.add(new paper.Point(position.x + carLength/2, position.y)); // Sharp needle nose
+    carBody.add(new paper.Point(position.x + carLength/3, position.y + carWidth/4)); // Nose widening
+    carBody.add(new paper.Point(position.x + carLength/6, position.y + carWidth/2)); // Front wing area
+    carBody.add(new paper.Point(position.x - carLength/6, position.y + carWidth/2)); // Sidepod
+    carBody.add(new paper.Point(position.x - carLength/3, position.y + carWidth/3)); // Coke bottle shape
+    carBody.add(new paper.Point(position.x - carLength/2, position.y + carWidth/4)); // Rear wing
+    carBody.add(new paper.Point(position.x - carLength/2, position.y - carWidth/4)); // Rear wing (other side)
+    carBody.add(new paper.Point(position.x - carLength/3, position.y - carWidth/3)); // Coke bottle shape
+    carBody.add(new paper.Point(position.x - carLength/6, position.y - carWidth/2)); // Sidepod
+    carBody.add(new paper.Point(position.x + carLength/6, position.y - carWidth/2)); // Front wing area
+    carBody.add(new paper.Point(position.x + carLength/3, position.y - carWidth/4)); // Nose widening
+    
+    carBody.closed = true;
+    carBody.fillColor = new paper.Color(primaryColor);
+    carBody.strokeColor = new paper.Color(accentColor);
+    carBody.strokeWidth = 0.5;
+    carBody.data = { type: 'car', id: car.id };
+    
+    // Add cockpit area
+    const cockpit = new paper.Path.Rectangle({
+      point: [position.x - carLength/8, position.y - carWidth/6],
+      size: [carLength/4, carWidth/3],
+      fillColor: new paper.Color(0, 0, 0, 0.8),
+      data: { type: 'car', id: car.id }
+    });
+    
+    // Add tires with compound colors
+    const tireWidth = 1.2;
+    const tireLength = 2.5;
+    
+    // Front left tire
+    const frontLeftTire = new paper.Path.Rectangle({
+      point: [position.x + carLength/4 - tireLength/2, position.y + carWidth/2 - tireWidth/2],
+      size: [tireLength, tireWidth],
+      fillColor: new paper.Color(tireColor),
+      strokeColor: new paper.Color('#000000'),
+      strokeWidth: 0.3,
+      data: { type: 'car', id: car.id }
+    });
+    
+    // Front right tire
+    const frontRightTire = new paper.Path.Rectangle({
+      point: [position.x + carLength/4 - tireLength/2, position.y - carWidth/2 - tireWidth/2],
+      size: [tireLength, tireWidth],
+      fillColor: new paper.Color(tireColor),
+      strokeColor: new paper.Color('#000000'),
+      strokeWidth: 0.3,
+      data: { type: 'car', id: car.id }
+    });
+    
+    // Rear left tire
+    const rearLeftTire = new paper.Path.Rectangle({
+      point: [position.x - carLength/4 - tireLength/2, position.y + carWidth/2 - tireWidth/2],
+      size: [tireLength, tireWidth],
+      fillColor: new paper.Color(tireColor),
+      strokeColor: new paper.Color('#000000'),
+      strokeWidth: 0.3,
+      data: { type: 'car', id: car.id }
+    });
+    
+    // Rear right tire
+    const rearRightTire = new paper.Path.Rectangle({
+      point: [position.x - carLength/4 - tireLength/2, position.y - carWidth/2 - tireWidth/2],
+      size: [tireLength, tireWidth],
+      fillColor: new paper.Color(tireColor),
+      strokeColor: new paper.Color('#000000'),
+      strokeWidth: 0.3,
+      data: { type: 'car', id: car.id }
+    });
+    
+    // Add top highlight for 3D effect
+    const highlight = new paper.Path();
+    highlight.add(new paper.Point(position.x + carLength/2, position.y));
+    highlight.add(new paper.Point(position.x - carLength/2, position.y));
+    highlight.strokeColor = new paper.Color(255, 255, 255, 0.6);
+    highlight.strokeWidth = 0.8;
+    highlight.data = { type: 'car', id: car.id };
+    
+    // Group all car parts
+    const carGroup = new paper.Group([
+      carShadow, carBody, cockpit, 
+      frontLeftTire, frontRightTire, rearLeftTire, rearRightTire,
+      highlight
+    ]);
+    
+    return carGroup;
+  };
+
+    // Draw cars and their speed indicators with enhanced features
+  const drawCarsAndSpeeds = useCallback(() => {
+    if (!paper || !paper.project || !paper.project.layers || !paper.project.layers[0] || !paperLoaded) {
+      console.log('[drawCarsAndSpeeds] Paper.js not properly initialized, skipping car drawing');
+      return;
+    }
+
+    console.log('[drawCarsAndSpeeds] Starting car drawing, carPositions:', Object.keys(carPositions).length);
+    console.log('[drawCarsAndSpeeds] Main layer children before:', paper.project.layers[0].children.length);
+
+    // If no car positions, just clear the car layer and return
+    if (Object.keys(carPositions).length === 0) {
+      const carLayer = paper.project.layers.find(layer => layer.data?.type === 'car_layer');
+      if (carLayer) {
+        carLayer.removeChildren();
+        console.log('[drawCarsAndSpeeds] No cars to draw, cleared car layer');
+      }
+      return;
+    }
+
+    // Create or get car layer - this allows us to clear just the car layer
+    let carLayer = paper.project.layers.find(layer => layer.data?.type === 'car_layer');
+    if (!carLayer) {
+      carLayer = new paper.Layer();
+      carLayer.data = { type: 'car_layer' };
+      // Ensure car layer is above the main layer but don't activate it yet
+      if (paper.project.layers && paper.project.layers[0]) {
+        carLayer.insertAbove(paper.project.layers[0]);
+      }
+      console.log('[drawCarsAndSpeeds] Created new car layer');
+    }
+    
+    // Clear only the car layer completely
+    carLayer.removeChildren();
+    
+    // IMPORTANT: Keep the main layer active for track elements
+    // Only temporarily activate car layer for drawing cars
+    const originalLayer = paper.project.activeLayer;
+    console.log('[drawCarsAndSpeeds] Original layer:', originalLayer.data?.type || 'main');
+    carLayer.activate();
+
+    // Draw each car and its speed
+    Object.entries(carPositions).forEach(([carId, position]) => {
+      const car = cars.find(c => c.id === carId);
+      if (!car) return;
+
+      // Create F1 car
+      const carGroup = createF1Car(position, car);
+      
+      // Rotate car to match racing line direction
+      carGroup.rotate(position.angle * (180/Math.PI), new paper.Point(position.x, position.y));
+
+      // Add speed indicator if car is moving
+      if (position.speed > 0) {
+        // Convert speed to km/h for display
+        const speedKmh = Math.round(position.speed * 3.6);
+        
+        // Create speed text with background
+        const speedBg = new paper.Path.Rectangle({
+          point: [position.x - 15, position.y - 30],
+          size: [30, 12],
+          fillColor: new paper.Color(0, 0, 0, 0.7),
+          radius: 3,
+          data: { type: 'speed', id: carId }
+        });
+        
+        const speedText = new paper.PointText({
+          point: new paper.Point(position.x, position.y - 20),
+          content: `${speedKmh} km/h`,
+          fillColor: new paper.Color('#ffffff'),
+          fontSize: 8,
+          justification: 'center',
+          data: { type: 'speed', id: carId }
+        });
+
+        // All trail effects removed - clean car animation without any trails
+      }
+    });
+
+    // CRITICAL: Always switch back to the original layer (main layer for tracks)
+    originalLayer.activate();
+    console.log('[drawCarsAndSpeeds] Switched back to original layer');
+    if (paper.project.layers && paper.project.layers[0]) {
+      console.log('[drawCarsAndSpeeds] Main layer children after:', paper.project.layers[0].children.length);
+    }
+
+    // Force immediate canvas update to ensure both layers are visible
+    if (paper.view) {
+      paper.view.requestUpdate();
+    }
+    
+    console.log('[drawCarsAndSpeeds] Car drawing complete');
+  }, [carPositions, cars, paperLoaded]);
+
+  // Effect to update car drawings
+  useEffect(() => {
+    // Only draw cars if Paper.js is fully initialized and we have a track
+    if (paperLoaded && hasTrack) {
+    drawCarsAndSpeeds();
+    }
+  }, [carPositions, drawCarsAndSpeeds, paperLoaded, hasTrack]);
+
+  // Handle clear
+  const handleClearAll = useCallback(() => {
+    console.log('[handleClearAll] Clearing everything...');
+    
+    // Clear parent component state
+    handleClear();
+    
+    // Clear Paper.js canvas
+    if (paper && paper.project && paper.project.layers && paper.project.layers[0]) {
+      // Clear all track elements from the main layer
+      const mainLayer = paper.project.layers[0];
+      if (mainLayer) {
+        const elementsToRemove = mainLayer.children.filter(child => 
+          child.data?.type === 'track_permanent' || 
+          child.data?.type === 'track' ||
+          child.data?.type === 'completion_preview' ||
+          child.data?.subtype === 'start_finish' ||
+          child.data?.subtype === 'center_guide' ||
+          child.data?.subtype === 'left_boundary' ||
+          child.data?.subtype === 'right_boundary'
+        );
+        elementsToRemove.forEach(element => element.remove());
+        console.log('[handleClearAll] Removed', elementsToRemove.length, 'track elements');
+      }
+      
+      // Clear the car layer
+      const carLayer = paper.project.layers.find(layer => layer.data?.type === 'car_layer');
+      if (carLayer) {
+        carLayer.removeChildren();
+        console.log('[handleClearAll] Cleared car layer');
+      }
+      
+      // Force canvas update
+      paper.view?.requestUpdate();
+    }
+    
+    // Clear all component state
+    setIsAnimating(false);
+    setHasTrack(false);
+    setIsDrawingTrack(false);
+    setInternalTrackPoints([]); // Clear internal track points
+    
+    // Clear animation
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+    animationStartTime.current = null;
+    animationProgress.current = 0;
+    
+    // Clear car positions
+    setCarPositions({});
+    
+    // Clear path references
     currentPath.current = null;
     innerPath.current = null;
     outerPath.current = null;
-
-    // Redraw the track with boundaries
-    drawTrackWithBoundaries(points, false, true);
-  };
+    
+    console.log('[handleClearAll] Clear complete');
+  }, [handleClear]);
 
   return (
-    <div className="relative w-full h-full">
-        <canvas
-          ref={canvasRef}
-        className="w-full h-full border border-gray-200 rounded-lg"
+    <div className="w-full h-full relative bg-gray-50">
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full rounded"
+        style={{ touchAction: 'none', backgroundColor: '#f8fafc' }}
+        onContextMenu={(e) => e.preventDefault()}
       />
-      
-      {/* Control buttons */}
-      <div className="absolute bottom-4 right-4 flex gap-2">
-        <button
-          onClick={() => {
-            handleClear();
-            if (paper?.project) {
-              paper.project.activeLayer.removeChildren();
-            }
-          }}
-          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
-          title="Clear the track and all racing lines"
-          disabled={!paperLoaded}
-        >
-          Clear
-        </button>
-      </div>
-
       {!paperLoaded && (
-        <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75">
-          <div className="text-gray-600">Loading drawing tools...</div>
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="text-blue-600 font-mono text-sm">INITIALIZING CANVAS...</div>
+          </div>
         </div>
       )}
+
+      {/* Control buttons */}
+      <div className="absolute top-3 right-3 flex gap-2" role="toolbar">
+        <button
+          onClick={handleAnimateClick}
+          disabled={!hasTrack || !internalTrackPoints.length || internalTrackPoints.length < 2 || !cars.length}
+          className={`px-3 py-2 font-mono text-xs font-bold rounded border transition-all shadow-sm ${
+            isSimulating 
+              ? 'bg-blue-600 border-blue-500 text-white' 
+              : isAnimating 
+                ? 'bg-red-600 border-red-500 text-white hover:bg-red-700' 
+                : 'bg-green-600 border-green-500 text-white hover:bg-green-700'
+          } ${
+            (!hasTrack || !internalTrackPoints.length || internalTrackPoints.length < 2 || !cars.length) 
+              ? 'opacity-50 cursor-not-allowed bg-gray-300 border-gray-300 text-gray-500' 
+              : ''
+          }`}
+          title={
+            !cars.length ? "Add a car first" :
+            !hasTrack || !internalTrackPoints.length || internalTrackPoints.length < 2 ? "Draw a track first" :
+            isSimulating ? "Simulating..." :
+            isAnimating ? "Stop Animation" : 
+            simulationResults ? "Play Animation" : "Start Simulation"
+          }
+        >
+          {isSimulating ? "SIMULATING..." :
+           isAnimating ? "◼ STOP" : 
+           simulationResults ? "▶ PLAY" : "▶ ANIMATE"}
+        </button>
+        <button
+          onClick={handleClearAll}
+          className="px-3 py-2 bg-red-600 border border-red-500 hover:bg-red-700 text-white font-mono text-xs font-bold rounded transition-all shadow-sm"
+          title="Clear Track"
+        >
+          ✕ CLEAR
+        </button>
+      </div>
     </div>
   );
 };
