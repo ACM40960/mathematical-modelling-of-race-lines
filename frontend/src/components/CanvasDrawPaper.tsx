@@ -1518,6 +1518,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
           child.data?.type === 'track_permanent' || 
           child.data?.type === 'track' ||
           child.data?.type === 'completion_preview' ||
+          child.data?.type === 'racing_line' ||
           child.data?.subtype === 'start_finish' ||
           child.data?.subtype === 'center_guide' ||
           child.data?.subtype === 'left_boundary' ||

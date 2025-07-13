@@ -1,2 +1,75 @@
-frontend/node_modules/
-frontend/.next/
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.env
+.venv
+env/
+venv/
+ENV/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node/TypeScript
+node_modules/
+.npm
+.next
+.nuxt
+.cache
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# IDEs and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.sublime-workspace
+*.sublime-project
+
+# Project specific
+output/
+*.log
+.env*
+!.env.example
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+*.ipynb
+
+# Documentation
+_build/
+.docusaurus
+.cache/
+.temp/
