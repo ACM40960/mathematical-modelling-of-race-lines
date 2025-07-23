@@ -8,20 +8,19 @@ import CarControl from "../components/CarControl";
 import { Point, Car, Track } from "../types";
 
 // Dynamically import CanvasDrawPaper with no SSR
-const CanvasDrawPaper = dynamic(
-  () => import("../components/CanvasDrawPaper"),
-  { 
-    ssr: false,
-    loading: () => (
-      <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded border border-gray-300">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <div className="text-blue-600 font-mono text-sm">INITIALIZING CANVAS...</div>
+const CanvasDrawPaper = dynamic(() => import("../components/CanvasDrawPaper"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded border border-gray-300">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="text-blue-600 font-mono text-sm">
+          INITIALIZING CANVAS...
         </div>
       </div>
-    )
-  }
-);
+    </div>
+  ),
+});
 
 interface SimulationResult {
   car_id: string;
@@ -37,15 +36,17 @@ export default function Home() {
   const [trackLength, setTrackLength] = useState<number>(0);
   const [discretizationStep, setDiscretizationStep] = useState<number>(0.1);
   const [track, setTrack] = useState<Track | null>(null);
-  
+
   // Cars state
   const [cars, setCars] = useState<Car[]>([]);
-  
+
   // Racing line model state
-  const [selectedModel, setSelectedModel] = useState<string>('physics_based');
-  
+  const [selectedModel, setSelectedModel] = useState<string>("physics_based");
+
   // Simulation results state
-  const [simulationResults, setSimulationResults] = useState<SimulationResult[]>([]);
+  const [simulationResults, setSimulationResults] = useState<
+    SimulationResult[]
+  >([]);
 
   // Clear all drawn lines and results
   const handleClear = () => {
@@ -55,13 +56,17 @@ export default function Home() {
   };
 
   // Update track data when lines are drawn
-  const handleTrackUpdate = (trackPoints: Point[], curvature: number[], length: number) => {
+  const handleTrackUpdate = (
+    trackPoints: Point[],
+    curvature: number[],
+    length: number
+  ) => {
     setTrackLength(length);
     setTrack({
       track_points: trackPoints,
       width: trackWidth,
       friction: 0.7,
-      cars: cars
+      cars: cars,
     });
   };
 
@@ -91,7 +96,7 @@ export default function Home() {
             />
           </div>
         </div>
-        
+
         {/* Control Panel (20%) */}
         <div className="flex-1 basis-1/5 max-w-[20%] h-full">
           <div className="h-full flex flex-col gap-2">
@@ -101,7 +106,7 @@ export default function Home() {
               setTrackWidth={(width) => {
                 setTrackWidth(width);
                 if (track) {
-                  setTrack({...track, width});
+                  setTrack({ ...track, width });
                 }
               }}
               trackLength={trackLength}

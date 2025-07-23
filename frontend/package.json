@@ -9,6 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@types/animejs": "^3.1.13",
+    "animejs": "^4.0.2",
     "chaikin-smooth": "^1.0.4",
     "next": "15.3.4",
     "paper": "^0.12.17",
