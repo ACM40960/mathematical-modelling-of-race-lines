@@ -6,240 +6,93 @@
  * 1. Track Width - The width of the racing track in meters
  * 2. Track Length - The total length of the track in kilometers
  * 3. Discretization Step - The granularity of track point sampling
+ * 4. Track Selection - Choose from predefined F1 circuits
  *
  * Features:
  * - Real-time validation of input values
  * - Enforced minimum and maximum bounds
  * - Automatic value clamping
  * - Responsive updates to parent component
+ * - Track preset selection from database
  */
 
-"use client";
-
-import React, { useState } from "react";
+import React from "react";
 
 interface TrackControlProps {
   trackWidth: number;
-  setTrackWidth: (width: number) => void;
+  onTrackWidthChange: (width: number) => void;
   trackLength: number;
-  setTrackLength: (length: number) => void;
   discretizationStep: number;
-  setDiscretizationStep: (step: number) => void;
+  onDiscretizationStepChange: (step: number) => void;
+  onClear: () => void;
 }
 
-interface ValidationRules {
-  min: number;
-  max: number;
-  step: number;
-}
-
-const validationRules = {
-  trackWidth: { min: 10, max: 30, step: 1 },
-  trackLength: { min: 0, max: 30, step: 0.1 },
-  discretizationStep: { min: 0.1, max: 10, step: 0.1 },
-};
-
-const TrackControl: React.FC<TrackControlProps> = ({
+export default function TrackControl({
   trackWidth,
-  setTrackWidth,
+  onTrackWidthChange,
   trackLength,
-  setTrackLength,
   discretizationStep,
-  setDiscretizationStep,
-}) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const validateAndSetValue = (
-    value: number,
-    setter: (value: number) => void,
-    rules: ValidationRules
-  ) => {
-    const validValue = Math.min(Math.max(value, rules.min), rules.max);
-    setter(validValue);
-  };
-
-  const handleSendToBackend = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch("http://localhost:8000/api/track", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          trackWidth,
-          trackLength,
-          discretizationStep,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to send track data");
-      }
-
-      const data = await response.json();
-      console.log("Response from backend:", data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  onDiscretizationStepChange,
+  onClear,
+}: TrackControlProps) {
   return (
-    <div className="w-full bg-gray-50 text-gray-800 text-xs border border-gray-300 rounded shadow-sm">
-      {/* Curvature Profile Section */}
-      {/* <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <span className="text-gray-700 text-xs">CURVATURE PROFILE</span>
-        </div>
-        <div className="mt-1 text-xs text-gray-500">(Generated from track)</div>
-      </div> */}
-      <div className="bg-gray-100 px-3 py-2 border-b border-gray-300">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-blue-700">TRACK CONTROL</h2>
-        </div>
-      </div>
-
-      {/* Track Settings Section */}
-      <div className="px-3 py-2 border-b border-gray-200">
-        {/* <div className="flex items-center justify-between mb-6">
-          <span className="text-gray-700 text-xs">TRACK SETTINGS</span>
-          <span className="text-orange-600 text-xs font-bold">
-            {trackLength.toFixed(1)}KM
-          </span>
-        </div> */}
-
-        {/* Track Width with Racing-Style Slider */}
-        <div className="mb-3">
-          <div className="flex justify-between items-center mb-1">
-            <label className="text-gray-600 text-xs">WIDTH</label>
-            <span className="text-gray-800 text-xs font-bold">
-              {trackWidth}M
-            </span>
-          </div>
+    <div className="p-4 border border-gray-300 rounded">
+      <h3 className="font-semibold text-gray-800 mb-3">Track Parameters</h3>
+      
+      <div className="space-y-4">
+        {/* Track Width Control */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Track Width (meters)
+          </label>
           <input
-            type="range"
-            className="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb"
+            type="number"
             value={trackWidth}
-            min={validationRules.trackWidth.min}
-            max={validationRules.trackWidth.max}
-            step={validationRules.trackWidth.step}
-            onChange={(e) =>
-              validateAndSetValue(
-                Number(e.target.value),
-                setTrackWidth,
-                validationRules.trackWidth
-              )
-            }
-          />
-          <div className="flex justify-between text-xs text-gray-500 mt-1">
-            <span>NARROW</span>
-            <span>WIDE</span>
-          </div>
-        </div>
-
-        {/* Track Length */}
-        <div className="mb-3">
-          <div className="flex justify-between items-center mb-1">
-            <label className="text-gray-600 text-xs">LENGTH</label>
-            <span className="text-gray-800 text-xs font-bold">
-              {trackLength.toFixed(1)}KM
-            </span>
-          </div>
-          <input
-            type="number"
-            className="w-full bg-gray-50 text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-            value={trackLength}
-            min={validationRules.trackLength.min}
-            max={validationRules.trackLength.max}
-            step={validationRules.trackLength.step}
-            onChange={(e) =>
-              validateAndSetValue(
-                Number(e.target.value),
-                setTrackLength,
-                validationRules.trackLength
-              )
-            }
+            onChange={(e) => onTrackWidthChange(Number(e.target.value))}
+            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            min="5"
+            max="50"
+            step="0.5"
           />
         </div>
 
-        {/* Discretization Step */}
-        <div className="mb-3">
-          <div className="flex justify-between items-center mb-1">
-            <label className="text-gray-600 text-xs">DISCRETIZATION</label>
-            <span className="text-gray-800 text-xs font-bold">
-              Δs={discretizationStep}
-            </span>
-          </div>
+        {/* Track Length Display */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Track Length (km)
+          </label>
+          <input
+            type="text"
+            value={trackLength.toFixed(3)}
+            readOnly
+            className="w-full p-2 border border-gray-300 rounded bg-gray-50 text-gray-600"
+          />
+        </div>
+
+        {/* Discretization Step Control */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Discretization Step
+          </label>
           <input
             type="number"
-            className="w-full bg-gray-50 text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
             value={discretizationStep}
-            min={validationRules.discretizationStep.min}
-            max={validationRules.discretizationStep.max}
-            step={validationRules.discretizationStep.step}
-            onChange={(e) =>
-              validateAndSetValue(
-                Number(e.target.value),
-                setDiscretizationStep,
-                validationRules.discretizationStep
-              )
-            }
+            onChange={(e) => onDiscretizationStepChange(Number(e.target.value))}
+            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            min="0.01"
+            max="1"
+            step="0.01"
           />
         </div>
 
-        {/* Action Button */}
+        {/* Clear Button */}
         <button
-          onClick={handleSendToBackend}
-          disabled={isLoading}
-          className={`w-full py-2 px-3 rounded text-xs font-bold transition-colors ${
-            isLoading
-              ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700 text-white"
-          }`}
+          onClick={onClear}
+          className="w-full px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors"
         >
-          {isLoading ? "SENDING..." : "GET TRACK DATA"}
+          Clear Track
         </button>
-
-        {/* Error Display */}
-        {error && (
-          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-red-700 text-xs">
-            {error}
-          </div>
-        )}
       </div>
-      <style jsx>{`
-        .slider-thumb::-webkit-slider-thumb {
-          appearance: none;
-          width: 16px;
-          height: 16px;
-          background: #3b82f6;
-          border-radius: 50%;
-          cursor: pointer;
-          border: 2px solid #ffffff;
-          box-shadow: 0 0 0 1px #3b82f6;
-        }
-
-        .slider-thumb::-moz-range-thumb {
-          width: 16px;
-          height: 16px;
-          background: #3b82f6;
-          border-radius: 50%;
-          cursor: pointer;
-          border: 2px solid #ffffff;
-          box-shadow: 0 0 0 1px #3b82f6;
-        }
-
-        .slider-thumb:focus::-webkit-slider-thumb {
-          box-shadow: 0 0 0 2px #3b82f6;
-        }
-      `}</style>
     </div>
   );
-};
-
-export default TrackControl;
+}

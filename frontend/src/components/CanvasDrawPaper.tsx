@@ -332,7 +332,8 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
   const drawTrackWithBoundaries = (
     points: Point[],
     isPreview = false,
-    clearExisting = false
+    clearExisting = false,
+    isCircuit = false
   ) => {
     console.log(
       `[drawTrackWithBoundaries] Drawing track with ${points.length} points, isPreview: ${isPreview}, clearExisting: ${clearExisting}`
@@ -387,20 +388,20 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
         )
     );
 
-    // Draw center line with bright, visible colors
+    // Draw center line (same color as custom tracks)
     const centerPath = new paper.Path({
       segments: paperPoints,
-      strokeColor: new paper.Color("#ff0000"), // Bright red center line
+      strokeColor: new paper.Color("#666666"), // Gray center line (matches custom tracks)
       strokeWidth: 3,
       strokeCap: "round",
       strokeJoin: "round",
       data: { type: "track", subtype: "center" },
     });
 
-    // Draw boundaries with bright, visible colors
+    // Draw boundaries (same color as custom tracks)
     const leftPath = new paper.Path({
       segments: leftPoints,
-      strokeColor: new paper.Color("#0000ff"), // Bright blue left boundary
+      strokeColor: new paper.Color("#333333"), // Dark gray left boundary (matches custom tracks)
       strokeWidth: 2,
       strokeCap: "round",
       strokeJoin: "round",
@@ -409,12 +410,19 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
 
     const rightPath = new paper.Path({
       segments: rightPoints,
-      strokeColor: new paper.Color("#00ff00"), // Bright green right boundary
+      strokeColor: new paper.Color("#333333"), // Dark gray right boundary (matches custom tracks)
       strokeWidth: 2,
       strokeCap: "round",
       strokeJoin: "round",
       data: { type: "track", subtype: "right" },
     });
+
+    // Close paths for circuit tracks (F1 circuits)
+    if (isCircuit) {
+      centerPath.closePath();
+      leftPath.closePath();
+      rightPath.closePath();
+    }
 
     if (!isPreview) {
       centerPath.smooth();
@@ -422,49 +430,75 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       rightPath.smooth();
     }
 
-    // Draw start point indicator (bright green circle with 'S')
-    const startPoint = points[0];
-    const startCircle = new paper.Path.Circle(
-      new paper.Point(startPoint.x, startPoint.y),
-      18
-    );
-    startCircle.fillColor = new paper.Color("#00ff00"); // Bright green
-    startCircle.strokeColor = new paper.Color("#000000"); // Black border
-    startCircle.strokeWidth = 3;
-    startCircle.data = { type: "start_finish", subtype: "start" };
+    // Draw start/finish indicators (subtle colors to match track theme)
+    if (isCircuit) {
+      // For circuits, show single start/finish line
+      const startPoint = points[0];
+      const startCircle = new paper.Path.Circle(
+        new paper.Point(startPoint.x, startPoint.y),
+        18
+      );
+      startCircle.fillColor = new paper.Color("#888888"); // Subtle gray for start/finish
+      startCircle.strokeColor = new paper.Color("#333333"); // Dark gray border
+      startCircle.strokeWidth = 2;
+      startCircle.data = { type: "start_finish", subtype: "circuit" };
 
-    // Add 'S' text
-    const startText = new paper.PointText({
-      point: new paper.Point(startPoint.x - 6, startPoint.y + 6),
-      content: "S",
-      fillColor: "#000000", // Black text for contrast
-      fontFamily: "Arial",
-      fontWeight: "bold",
-      fontSize: 16,
-      data: { type: "start_finish", subtype: "start_text" },
-    });
+      // Add 'S/F' text for start/finish line
+      const startText = new paper.PointText({
+        point: new paper.Point(startPoint.x - 10, startPoint.y + 4),
+        content: "S/F",
+        fillColor: "#ffffff", // White text for contrast
+        fontFamily: "Arial",
+        fontWeight: "bold",
+        fontSize: 11,
+        data: { type: "start_finish", subtype: "circuit_text" },
+      });
+    } else {
+      // For open tracks, show separate start and finish points
+      // Draw start point indicator
+      const startPoint = points[0];
+      const startCircle = new paper.Path.Circle(
+        new paper.Point(startPoint.x, startPoint.y),
+        16
+      );
+      startCircle.fillColor = new paper.Color("#777777"); // Subtle gray
+      startCircle.strokeColor = new paper.Color("#333333"); // Dark gray border
+      startCircle.strokeWidth = 2;
+      startCircle.data = { type: "start_finish", subtype: "start" };
 
-    // Draw end point indicator (bright red circle with 'F' for Finish)
-    const endPoint = points[points.length - 1];
-    const endCircle = new paper.Path.Circle(
-      new paper.Point(endPoint.x, endPoint.y),
-      18
-    );
-    endCircle.fillColor = new paper.Color("#ff0000"); // Bright red
-    endCircle.strokeColor = new paper.Color("#000000"); // Black border
-    endCircle.strokeWidth = 3;
-    endCircle.data = { type: "start_finish", subtype: "finish" };
+      // Add 'S' text
+      const startText = new paper.PointText({
+        point: new paper.Point(startPoint.x - 5, startPoint.y + 5),
+        content: "S",
+        fillColor: "#ffffff", // White text for contrast
+        fontFamily: "Arial",
+        fontWeight: "bold",
+        fontSize: 14,
+        data: { type: "start_finish", subtype: "start_text" },
+      });
 
-    // Add 'F' text
-    const endText = new paper.PointText({
-      point: new paper.Point(endPoint.x - 6, endPoint.y + 6),
-      content: "F",
-      fillColor: "#000000", // Black text for contrast
-      fontFamily: "Arial",
-      fontWeight: "bold",
-      fontSize: 16,
-      data: { type: "start_finish", subtype: "finish_text" },
-    });
+      // Draw end point indicator
+      const endPoint = points[points.length - 1];
+      const endCircle = new paper.Path.Circle(
+        new paper.Point(endPoint.x, endPoint.y),
+        16
+      );
+      endCircle.fillColor = new paper.Color("#555555"); // Darker gray for finish
+      endCircle.strokeColor = new paper.Color("#333333"); // Dark gray border
+      endCircle.strokeWidth = 2;
+      endCircle.data = { type: "start_finish", subtype: "finish" };
+
+      // Add 'F' text
+      const endText = new paper.PointText({
+        point: new paper.Point(endPoint.x - 5, endPoint.y + 5),
+        content: "F",
+        fillColor: "#ffffff", // White text for contrast
+        fontFamily: "Arial",
+        fontWeight: "bold",
+        fontSize: 14,
+        data: { type: "start_finish", subtype: "finish_text" },
+      });
+    }
 
     // Draw direction arrow near the start
     if (points.length > 1) {
@@ -1903,6 +1937,117 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
 
     console.log("[handleClearAll] Clear complete");
   }, [handleClear]);
+
+  // Helper function to calculate track length
+  const calculateTrackLength = (trackPoints: Point[]) => {
+    let length = 0;
+    for (let i = 1; i < trackPoints.length; i++) {
+      const dx = trackPoints[i].x - trackPoints[i - 1].x;
+      const dy = trackPoints[i].y - trackPoints[i - 1].y;
+      length += Math.sqrt(dx * dx + dy * dy);
+    }
+    return length / 1000; // Convert to kilometers for display
+  };
+
+  // Helper function to scale and center track points for canvas display
+  const scaleTrackToCanvas = (trackPoints: Point[], canvasWidth: number, canvasHeight: number) => {
+    if (trackPoints.length === 0) return trackPoints;
+    
+    // Find bounds of track points
+    const minX = Math.min(...trackPoints.map(p => p.x));
+    const maxX = Math.max(...trackPoints.map(p => p.x));
+    const minY = Math.min(...trackPoints.map(p => p.y));
+    const maxY = Math.max(...trackPoints.map(p => p.y));
+    
+    const trackWidth = maxX - minX;
+    const trackHeight = maxY - minY;
+    
+    // Ensure we have valid dimensions
+    if (trackWidth === 0 || trackHeight === 0) return trackPoints;
+    
+    // Calculate scale to fit canvas with adaptive padding
+    const minPadding = 40;
+    const maxPadding = 80;
+    const adaptivePadding = Math.min(maxPadding, Math.max(minPadding, Math.min(canvasWidth, canvasHeight) * 0.1));
+    
+    const scaleX = (canvasWidth - 2 * adaptivePadding) / trackWidth;
+    const scaleY = (canvasHeight - 2 * adaptivePadding) / trackHeight;
+    const scale = Math.min(scaleX, scaleY);
+    
+    // Calculate centering offsets to center the track perfectly
+    const scaledWidth = trackWidth * scale;
+    const scaledHeight = trackHeight * scale;
+    const offsetX = (canvasWidth - scaledWidth) / 2 - minX * scale;
+    const offsetY = (canvasHeight - scaledHeight) / 2 - minY * scale;
+    
+    // Scale and center points
+    return trackPoints.map(point => ({
+      x: point.x * scale + offsetX,
+      y: point.y * scale + offsetY
+    }));
+  };
+
+  // Function to draw track from preset data (using same style as custom tracks)
+  const drawPresetTrack = (trackPoints: Point[]) => {
+    console.log(`[drawPresetTrack] Starting to draw track with ${trackPoints.length} points`);
+    if (!paper || trackPoints.length === 0) return;
+    
+    // Get canvas dimensions
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    console.log(`[drawPresetTrack] Canvas dimensions: ${canvasWidth}x${canvasHeight}`);
+    
+    // Scale track points to fit canvas
+    const scaledPoints = scaleTrackToCanvas(trackPoints, canvasWidth, canvasHeight);
+    
+    // Clear existing paths
+    paper.project.clear();
+    
+    // Use the same drawing method as custom tracks for consistency
+    // Pass isCircuit=true since F1 tracks are closed circuits
+    drawTrackWithBoundaries(scaledPoints, false, false, true);
+    
+    // Update lines state
+    setLines([scaledPoints]);
+    
+    // Calculate track statistics
+    const length = calculateTrackLength(scaledPoints);
+    const curvature = calculateCurvature(scaledPoints);
+    
+    // Notify parent component if callback exists
+    if (onTrackUpdate) {
+      onTrackUpdate(scaledPoints, curvature, length);
+    }
+    
+    // Update track length in parent
+    if (onTrackLengthChange) {
+      onTrackLengthChange(length);
+    }
+    
+    // Set track flags
+    setHasTrack(true);
+    
+    // Redraw the canvas
+    paper.view.update();
+  };
+
+  // Watch for lines changes to draw preset tracks
+  useEffect(() => {
+    if (lines.length === 1 && lines[0].length > 0 && paper) {
+      // Check if this is a preset track (any track with multiple points)
+      const trackPoints = lines[0];
+      if (trackPoints.length > 5) {
+        // This is likely a preset track, redraw it properly scaled
+        console.log(`[CanvasDrawPaper] Drawing preset track with ${trackPoints.length} points`);
+        setTimeout(() => {
+          drawPresetTrack(trackPoints);
+        }, 100);
+      }
+    }
+  }, [lines, paper]);
 
   return (
     <div className="w-full h-full relative bg-gray-50">

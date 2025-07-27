@@ -1,11 +1,14 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 import numpy as np
+from sqlalchemy.orm import Session
 from simulation.optimizer_new import optimize_racing_line, RacingLineModel, get_available_models
-from models.track import Track, Car, TrackInput
+from models.track import Track, Car, TrackInput, PredefinedTrack, TrackPreset, TrackListItem
 from models.response import SimulationResponse
+from database import get_db, create_tables
+from track_data import get_sample_f1_tracks
 import json
 
 # Initialize FastAPI app
@@ -23,6 +26,42 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database tables and populate with sample data"""
+    try:
+        create_tables()
+        print("Database tables created successfully")
+        
+        # Get existing track names to avoid duplicates
+        db = next(get_db())
+        existing_track_names = {track.name for track in db.query(PredefinedTrack).all()}
+        
+        # Get sample tracks and add any that don't exist
+        sample_tracks = get_sample_f1_tracks()
+        new_tracks_added = 0
+        
+        for track_data in sample_tracks:
+            if track_data["name"] not in existing_track_names:
+                db_track = PredefinedTrack(**track_data)
+                db.add(db_track)
+                new_tracks_added += 1
+                print(f"Added new track: {track_data['name']}")
+        
+        if new_tracks_added > 0:
+            db.commit()
+            print(f"Added {new_tracks_added} new tracks to database")
+        else:
+            print("No new tracks to add")
+            
+        # Show total track count
+        total_tracks = db.query(PredefinedTrack).count()
+        print(f"Total tracks in database: {total_tracks}")
+        
+        db.close()
+    except Exception as e:
+        print(f"Database initialization error: {e}")
 
 class SimulationRequest(BaseModel):
     """Request model for simulation with optional model parameter"""
@@ -52,6 +91,10 @@ async def simulate_racing_line(request: SimulationRequest):
     print(f"Number of cars: {len(request.cars)}")
     print(f"Model: {request.model}")
     print("================================\n")
+
+    # Debug info for track points
+    print(f"Track points sample: {request.track_points[:3] if len(request.track_points) > 3 else request.track_points}")
+
     
     try:
         # Convert request to Track object
@@ -161,3 +204,107 @@ async def process_track(track_data: TrackInput):
             "discretizationStep": track_data.discretizationStep
         }
     } 
+
+@app.get("/tracks", response_model=List[TrackListItem])
+async def get_tracks_list(
+    circuit_type: Optional[str] = None, 
+    country: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Get list of available predefined tracks with optional filtering
+    """
+    try:
+        query = db.query(PredefinedTrack).filter(PredefinedTrack.is_active == True)
+        
+        if circuit_type:
+            query = query.filter(PredefinedTrack.circuit_type == circuit_type)
+        if country:
+            query = query.filter(PredefinedTrack.country.ilike(f"%{country}%"))
+            
+        tracks = query.all()
+        
+        return [
+            TrackListItem(
+                id=track.id,
+                name=track.name,
+                country=track.country,
+                circuit_type=track.circuit_type,
+                track_length=track.track_length,
+                difficulty_rating=track.difficulty_rating,
+                preview_image_url=track.preview_image_url,
+                number_of_turns=track.number_of_turns
+            )
+            for track in tracks
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/tracks/{track_id}", response_model=TrackPreset)
+async def get_track_by_id(track_id: int, db: Session = Depends(get_db)):
+    """
+    Get full track data by ID for simulation
+    """
+    try:
+        track = db.query(PredefinedTrack).filter(
+            PredefinedTrack.id == track_id,
+            PredefinedTrack.is_active == True
+        ).first()
+        
+        if not track:
+            raise HTTPException(status_code=404, detail="Track not found")
+        
+        # Convert track_points from JSON to TrackPoint objects
+        from models.track import TrackPoint
+        track_points = [TrackPoint(**point) for point in track.track_points]
+        
+        return TrackPreset(
+            id=track.id,
+            name=track.name,
+            country=track.country,
+            circuit_type=track.circuit_type,
+            track_points=track_points,
+            width=track.width,
+            friction=track.friction,
+            track_length=track.track_length,
+            description=track.description,
+            preview_image_url=track.preview_image_url,
+            difficulty_rating=track.difficulty_rating,
+            elevation_change=track.elevation_change,
+            number_of_turns=track.number_of_turns,
+            fastest_lap_time=track.fastest_lap_time,
+            year_built=track.year_built
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/tracks/filter/countries")
+async def get_available_countries(db: Session = Depends(get_db)):
+    """
+    Get list of countries that have tracks in the database
+    """
+    try:
+        countries = db.query(PredefinedTrack.country).filter(
+            PredefinedTrack.is_active == True
+        ).distinct().all()
+        
+        return {"countries": [country[0] for country in countries]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/tracks/filter/types")
+async def get_available_circuit_types(db: Session = Depends(get_db)):
+    """
+    Get list of circuit types available in the database
+    """
+    try:
+        types = db.query(PredefinedTrack.circuit_type).filter(
+            PredefinedTrack.is_active == True
+        ).distinct().all()
+        
+        return {"circuit_types": [circuit_type[0] for circuit_type in types]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) 
+    

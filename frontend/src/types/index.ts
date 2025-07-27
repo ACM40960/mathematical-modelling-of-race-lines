@@ -38,7 +38,42 @@ export interface SimulationResponse {
 
 export interface SimulationResult {
   car_id: string;
-  coordinates: [number, number][];
+  coordinates: number[][];
   speeds: number[];
   lap_time: number;
+}
+
+// New interfaces for track selection
+export interface TrackListItem {
+  id: number;
+  name: string;
+  country: string;
+  circuit_type: string;
+  track_length: number;
+  difficulty_rating: number;
+  preview_image_url?: string;
+  number_of_turns?: number;
+}
+
+export interface TrackPreset {
+  id: number;
+  name: string;
+  country: string;
+  circuit_type: string;
+  track_points: Point[];
+  width: number;
+  friction: number;
+  track_length: number;
+  description?: string;
+  preview_image_url?: string;
+  difficulty_rating: number;
+  elevation_change?: number;
+  number_of_turns?: number;
+  fastest_lap_time?: number;
+  year_built?: number;
+}
+
+export interface TrackFilters {
+  country?: string;
+  circuit_type?: string;
 } 
