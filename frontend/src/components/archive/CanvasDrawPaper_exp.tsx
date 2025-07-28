@@ -112,15 +112,15 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
 
         const canvas = canvasRef.current;
 
-        // Force internal resolution to match visual size
+        // ✅ Force internal resolution to match visual size
         const rect = canvas.getBoundingClientRect();
         canvas.width = rect.width;
         canvas.height = rect.height;
 
-        // NOW setup Paper.js
+        // ✅ NOW setup Paper.js
         paper.setup(canvas);
 
-        // Set zoom and optionally center
+        // ✅ Set zoom and optionally center
         paper.view.zoom = 1.8;
         paper.view.center = paper.view.bounds.center;
 

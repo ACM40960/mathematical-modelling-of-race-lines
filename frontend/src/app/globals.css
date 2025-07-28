@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Apply Montserrat font to all elements for consistency */
+* {
+  font-family: var(--font-montserrat);
+}
+
 header {
   font-family: var(--font-montserrat);
 }
