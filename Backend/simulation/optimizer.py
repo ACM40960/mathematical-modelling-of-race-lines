@@ -5,13 +5,13 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.interpolate import splprep, splev
 from typing import List, Tuple, Dict
-from models.track import Car
+from schemas.track import Car
 from scipy.ndimage import gaussian_filter1d
 from enum import Enum
 
 # Import the new model classes
-from .models.physics_model import PhysicsBasedModel
-from .models.basic_model import BasicModel
+from .algorithms.physics_model import PhysicsBasedModel
+from .algorithms.basic_model import BasicModel
 
 class RacingLineModel(str, Enum):
     """Available racing line calculation models"""

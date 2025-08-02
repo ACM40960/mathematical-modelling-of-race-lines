@@ -33,5 +33,5 @@ def create_tables():
     """
     Create all tables in the database
     """
-    from models.track import Base
+    from schemas.track import Base
     Base.metadata.create_all(bind=engine) 

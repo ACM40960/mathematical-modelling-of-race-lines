@@ -4,11 +4,11 @@ from pydantic import BaseModel
 from typing import List, Optional
 import numpy as np
 from sqlalchemy.orm import Session
-from simulation.optimizer_new import optimize_racing_line, RacingLineModel, get_available_models
-from models.track import Track, Car, TrackInput, PredefinedTrack, TrackPreset, TrackListItem
-from models.response import SimulationResponse
+from simulation.optimizer import optimize_racing_line, RacingLineModel, get_available_models
+from schemas.track import Track, Car, TrackInput, PredefinedTrack, TrackPreset, TrackListItem
+from schemas.response import SimulationResponse
 from database import get_db, create_tables
-from track_data import get_sample_f1_tracks
+from data.track_data import get_sample_f1_tracks
 import json
 
 # Initialize FastAPI app
@@ -98,7 +98,7 @@ async def simulate_racing_line(request: SimulationRequest):
     
     try:
         # Convert request to Track object
-        from models.track import TrackPoint
+        from schemas.track import TrackPoint
         track_points = [TrackPoint(x=p['x'], y=p['y']) for p in request.track_points]
         cars = [Car(**car_data) for car_data in request.cars]
         
@@ -255,7 +255,7 @@ async def get_track_by_id(track_id: int, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="Track not found")
         
         # Convert track_points from JSON to TrackPoint objects
-        from models.track import TrackPoint
+        from schemas.track import TrackPoint
         track_points = [TrackPoint(**point) for point in track.track_points]
         
         return TrackPreset(
