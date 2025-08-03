@@ -8,12 +8,13 @@ import {
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
   Title,
   Tooltip,
   Legend,
   ChartOptions
 } from 'chart.js';
-import { Line } from 'react-chartjs-2';
+import { Line, Bar } from 'react-chartjs-2';
 
 // Register Chart.js components
 ChartJS.register(
@@ -21,6 +22,7 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
   Title,
   Tooltip,
   Legend
@@ -46,6 +48,15 @@ interface AnalysisData {
   values: number[];
   lapTimes: number[];
   avgSpeeds: number[];
+}
+
+interface SensitivityData {
+  parameter: string;
+  coefficient: number;  // dlap_time/dparameter at current value
+  percentageImpact: number;  // % change in lap time for 10% parameter change
+  ranking: number;  // 1 = most sensitive parameter
+  improvement: number;  // max possible improvement (seconds)
+  direction: 'increase' | 'decrease';  // which direction improves lap time
 }
 
 interface GraphType {
@@ -109,13 +120,16 @@ export const ParameterAnalysis: React.FC<ParameterAnalysisProps> = ({
 
   // Analysis states
   const [analysisData, setAnalysisData] = useState<AnalysisData[]>([]);
+  const [sensitivityData, setSensitivityData] = useState<SensitivityData[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [currentLapTime, setCurrentLapTime] = useState<number | null>(null);
   const [baselineLapTime, setBaselineLapTime] = useState<number | null>(null);
 
-  // Graph display states - Only Lap Time vs Parameter
+  // Graph display states - Multiple analysis options
   const [graphTypes, setGraphTypes] = useState<GraphType[]>([
-    { id: 'lap_time', label: 'Lap Time vs Parameter', enabled: true }
+    { id: 'lap_time', label: 'Lap Time vs Parameter', enabled: true },
+    { id: 'sensitivity', label: 'Sensitivity Coefficients', enabled: false },
+    { id: 'percentage_impact', label: 'Percentage Impact', enabled: false }
   ]);
 
   // 🎯 NEW: Parameter visibility state
@@ -302,12 +316,72 @@ export const ParameterAnalysis: React.FC<ParameterAnalysisProps> = ({
       }
 
       setAnalysisData(newAnalysisData);
+      
+      // 🔬 Calculate sensitivity analysis from the simulation data
+      const sensitivityResults = calculateSensitivityAnalysis(newAnalysisData, parameters);
+      setSensitivityData(sensitivityResults);
+      
     } catch (error) {
       console.error('Parameter analysis failed:', error);
     } finally {
       setIsAnalyzing(false);
     }
   }, [track, baseCar, parameters]);
+
+  // 🔬 NEW: Calculate sensitivity coefficients and rankings
+  const calculateSensitivityAnalysis = useCallback((analysisResults: AnalysisData[], currentParams: typeof parameters): SensitivityData[] => {
+    const sensitivityResults: SensitivityData[] = [];
+    
+    analysisResults.forEach(data => {
+      const { parameter, values, lapTimes } = data;
+      const range = PARAMETER_RANGES[parameter];
+      const currentValue = currentParams[parameter as keyof typeof currentParams];
+      
+      // Find current parameter value index in the analysis data
+      const currentIndex = values.findIndex(v => Math.abs(v - currentValue) < range.step);
+      
+      if (currentIndex >= 0 && currentIndex < values.length - 1) {
+        // Calculate numerical derivative (sensitivity coefficient)
+        const nextIndex = Math.min(currentIndex + 1, values.length - 1);
+        const prevIndex = Math.max(currentIndex - 1, 0);
+        
+        const deltaParam = values[nextIndex] - values[prevIndex];
+        const deltaLapTime = lapTimes[nextIndex] - lapTimes[prevIndex];
+        const coefficient = deltaParam !== 0 ? deltaLapTime / deltaParam : 0;
+        
+        // Calculate percentage impact (10% parameter change effect)
+        const tenPercentChange = currentValue * 0.1;
+        const percentageImpact = Math.abs(coefficient * tenPercentChange);
+        
+        // Find best possible improvement
+        const validLapTimes = lapTimes.filter(t => t < 900);
+        const bestTime = Math.min(...validLapTimes);
+        const currentTime = lapTimes[currentIndex];
+        const improvement = Math.max(0, currentTime - bestTime);
+        
+        // Determine optimization direction
+        const direction = coefficient < 0 ? 'increase' : 'decrease';
+        
+        sensitivityResults.push({
+          parameter,
+          coefficient: Math.abs(coefficient),
+          percentageImpact,
+          ranking: 0, // Will be set after sorting
+          improvement,
+          direction
+        });
+      }
+    });
+    
+    // Sort by percentage impact and assign rankings
+    sensitivityResults.sort((a, b) => b.percentageImpact - a.percentageImpact);
+    sensitivityResults.forEach((result, index) => {
+      result.ranking = index + 1;
+    });
+    
+    console.log('🔬 Sensitivity Analysis Results:', sensitivityResults);
+    return sensitivityResults;
+  }, []);
 
   // Toggle graph type
   const toggleGraphType = (id: string) => {
@@ -335,7 +409,7 @@ export const ParameterAnalysis: React.FC<ParameterAnalysisProps> = ({
       if (graphType.id === 'lap_time') {
         // Show lap time analysis for ONLY VISIBLE parameters
         analysisData
-          .filter(data => visibleParameters[data.parameter]) // 🎯 Filter by visibility
+          .filter(data => visibleParameters[data.parameter])
           .forEach((data, paramIndex) => {
             datasets.push({
               label: `${PARAMETER_RANGES[data.parameter].label} - Lap Time`,
@@ -348,24 +422,57 @@ export const ParameterAnalysis: React.FC<ParameterAnalysisProps> = ({
               pointRadius: 4
             });
           });
+      } 
+      else if (graphType.id === 'sensitivity' && sensitivityData.length > 0) {
+        // Show sensitivity coefficients as bar chart
+        const visibleSensitivity = sensitivityData.filter(data => visibleParameters[data.parameter]);
+        datasets.push({
+          label: 'Sensitivity Coefficient (∂LapTime/∂Parameter)',
+          data: visibleSensitivity.map((data, i) => ({ x: PARAMETER_RANGES[data.parameter].label, y: data.coefficient })),
+          borderColor: 'rgba(239, 68, 68, 0.8)',
+          backgroundColor: 'rgba(239, 68, 68, 0.2)',
+          borderWidth: 2,
+          type: 'bar'
+        });
+      }
+      else if (graphType.id === 'percentage_impact' && sensitivityData.length > 0) {
+        // Show percentage impact as bar chart
+        const visibleSensitivity = sensitivityData.filter(data => visibleParameters[data.parameter]);
+        datasets.push({
+          label: 'Percentage Impact (10% parameter change)',
+          data: visibleSensitivity.map((data, i) => ({ x: PARAMETER_RANGES[data.parameter].label, y: data.percentageImpact * 100 })),
+          borderColor: 'rgba(168, 85, 247, 0.8)',
+          backgroundColor: 'rgba(168, 85, 247, 0.2)',
+          borderWidth: 2,
+          type: 'bar'
+        });
       }
     });
 
     return { datasets };
   };
 
-  // Chart options
-  const chartOptions: ChartOptions<'line'> = {
+  // Chart options - support both line and bar charts
+  const chartOptions: ChartOptions<'line' | 'bar'> = {
     responsive: true,
     maintainAspectRatio: false,
+    interaction: {
+      intersect: false,
+    },
     plugins: {
       legend: {
         position: 'top' as const,
-        display: true
+        display: true,
+        labels: {
+          boxWidth: 12,
+          font: {
+            size: 10
+          }
+        }
       },
       title: {
         display: true,
-        text: 'Physics-Based Parameter Analysis - Lap Time vs Parameter Value'
+        text: 'Parameter Sensitivity Analysis'
       }
     },
     scales: {
@@ -379,7 +486,7 @@ export const ParameterAnalysis: React.FC<ParameterAnalysisProps> = ({
       y: {
         title: {
           display: true,
-          text: 'Lap Time (seconds)'
+          text: 'Analysis Value'
         }
       }
     }
@@ -439,7 +546,16 @@ export const ParameterAnalysis: React.FC<ParameterAnalysisProps> = ({
           <div className="flex-1">
             {analysisData.length > 0 ? (
               <div className="h-96 bg-gray-50 rounded-lg p-4">
-                <Line data={getChartData()} options={chartOptions} />
+                {(() => {
+                  const enabledTypes = graphTypes.filter(g => g.enabled);
+                  const hasBarChart = enabledTypes.some(t => t.id === 'sensitivity' || t.id === 'percentage_impact');
+                  
+                  if (hasBarChart) {
+                    return <Bar data={getChartData()} options={chartOptions} />;
+                  } else {
+                    return <Line data={getChartData()} options={chartOptions} />;
+                  }
+                })()}
               </div>
             ) : (
               <div className="h-96 bg-gray-50 rounded-lg flex items-center justify-center">
@@ -566,18 +682,22 @@ export const ParameterAnalysis: React.FC<ParameterAnalysisProps> = ({
 
           {/* Graph Types - Compact */}
           <div className="px-3 py-1.5 border-b border-gray-300">
-            <div className="text-gray-700 text-xs font-medium mb-1">GRAPH TYPE</div>
-            <label className="flex items-center space-x-1.5 cursor-pointer hover:bg-gray-100 px-1 py-0.5 rounded">
-              <input
-                type="checkbox"
-                checked={true}
-                disabled
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-2.5 h-2.5"
-              />
-              <span className="text-gray-700 text-xs">LAP TIME VS PARAMETER</span>
-            </label>
+            <div className="text-gray-700 text-xs font-medium mb-1">GRAPH TYPES</div>
+            <div className="space-y-1">
+              {graphTypes.map((graphType) => (
+                <label key={graphType.id} className="flex items-center space-x-1.5 cursor-pointer hover:bg-gray-100 px-1 py-0.5 rounded">
+                  <input
+                    type="checkbox"
+                    checked={graphType.enabled}
+                    onChange={() => toggleGraphType(graphType.id)}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-2.5 h-2.5"
+                  />
+                  <span className="text-gray-700 text-xs">{graphType.label.toUpperCase()}</span>
+                </label>
+              ))}
+            </div>
             <div className="text-gray-600 text-xs mt-1 px-1">
-              Shows how physics equations affect lap performance
+              Multiple analysis types from simulation data
             </div>
           </div>
 
@@ -632,6 +752,67 @@ export const ParameterAnalysis: React.FC<ParameterAnalysisProps> = ({
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 🔬 NEW: Sensitivity Analysis Results */}
+        {sensitivityData.length > 0 && (
+          <div className="w-full bg-gray-50 text-gray-800 text-xs border border-gray-300 rounded shadow-sm">
+            {/* Header */}
+            <div className="bg-gray-100 px-3 py-1.5 border-b border-gray-300">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-purple-700">SENSITIVITY ANALYSIS</h2>
+                <span className="text-green-600 text-xs">COMPUTED</span>
+              </div>
+            </div>
+
+            {/* Sensitivity Rankings */}
+            <div className="px-3 py-1.5 border-b border-gray-300">
+              <div className="text-gray-700 text-xs font-medium mb-1">PARAMETER RANKINGS</div>
+              <div className="space-y-0.5">
+                {sensitivityData
+                  .sort((a, b) => a.ranking - b.ranking)
+                  .map((data) => (
+                    <div key={data.parameter} className="flex items-center justify-between bg-white rounded border border-gray-300 px-2 py-1">
+                      <div className="flex items-center space-x-1.5">
+                        <span className={`text-xs font-bold px-1 py-0.5 rounded ${ 
+                          data.ranking === 1 ? 'bg-yellow-100 text-yellow-800' :
+                          data.ranking === 2 ? 'bg-gray-100 text-gray-800' :
+                          data.ranking === 3 ? 'bg-orange-100 text-orange-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          #{data.ranking}
+                        </span>
+                        <span className="text-gray-700 text-xs font-medium">
+                          {PARAMETER_RANGES[data.parameter].label}
+                        </span>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-purple-600 text-xs font-mono">
+                          {(data.percentageImpact * 100).toFixed(2)}%
+                        </div>
+                        <div className="text-gray-500 text-xs">
+                          {data.direction === 'increase' ? '↑' : '↓'} {data.coefficient.toFixed(4)}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {/* Sensitivity Summary */}
+            <div className="px-3 py-1.5">
+              <div className="text-gray-700 text-xs font-medium mb-1">IMPACT ANALYSIS</div>
+              <div className="space-y-0.5 text-gray-600 text-xs">
+                {sensitivityData.length > 0 && (
+                  <>
+                    <div>• Most sensitive: <strong>{PARAMETER_RANGES[sensitivityData[0]?.parameter]?.label}</strong></div>
+                    <div>• 10% parameter change affects lap time by up to <strong>{(Math.max(...sensitivityData.map(d => d.percentageImpact)) * 100).toFixed(2)}%</strong></div>
+                    <div>• Best potential improvement: <strong>{Math.max(...sensitivityData.map(d => d.improvement)).toFixed(3)}s</strong></div>
+                  </>
+                )}
               </div>
             </div>
           </div>

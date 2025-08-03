@@ -34,6 +34,7 @@ const validationRules: Record<
     | "accent_color"
     | "suspension_stiffness"
     | "tire_compound"
+    | "effective_frontal_area"
   >,
   ValidationRule
 > = {
@@ -42,6 +43,8 @@ const validationRules: Record<
   width: { min: 1.0, max: 2.0, step: 0.1, default: 1.4 },
   max_steering_angle: { min: 10, max: 45, step: 1, default: 30 },
   max_acceleration: { min: 1, max: 10, step: 0.5, default: 5 },
+  drag_coefficient: { min: 0.3, max: 3.0, step: 0.05, default: 1.0 },
+  lift_coefficient: { min: 0.5, max: 8.0, step: 0.1, default: 3.0 },
 };
 
 const defaultColors = [
@@ -146,6 +149,8 @@ const CarControl: React.FC<CarControlProps> = ({
       width: validationRules.width.default,
       max_steering_angle: validationRules.max_steering_angle.default,
       max_acceleration: validationRules.max_acceleration.default,
+      drag_coefficient: validationRules.drag_coefficient.default,
+      lift_coefficient: validationRules.lift_coefficient.default,
       tire_compound: "medium",
     };
     setCars([...cars, newCar]);
@@ -414,6 +419,50 @@ const CarControl: React.FC<CarControlProps> = ({
                     }
                     className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
                   />
+                </div>
+
+                {/* Aerodynamic Parameters */}
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <div>
+                    <label className="block text-gray-600 text-xs mb-1">
+                      DRAG COEFF
+                    </label>
+                    <input
+                      type="number"
+                      value={car.drag_coefficient || validationRules.drag_coefficient.default}
+                      min={validationRules.drag_coefficient.min}
+                      max={validationRules.drag_coefficient.max}
+                      step={validationRules.drag_coefficient.step}
+                      onChange={(e) =>
+                        updateCarParam(
+                          index,
+                          "drag_coefficient",
+                          Number(e.target.value)
+                        )
+                      }
+                      className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-600 text-xs mb-1">
+                      DOWNFORCE
+                    </label>
+                    <input
+                      type="number"
+                      value={car.lift_coefficient || validationRules.lift_coefficient.default}
+                      min={validationRules.lift_coefficient.min}
+                      max={validationRules.lift_coefficient.max}
+                      step={validationRules.lift_coefficient.step}
+                      onChange={(e) =>
+                        updateCarParam(
+                          index,
+                          "lift_coefficient",
+                          Number(e.target.value)
+                        )
+                      }
+                      className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
                 </div>
               </div>
             )}
