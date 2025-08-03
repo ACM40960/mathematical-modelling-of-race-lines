@@ -6,6 +6,7 @@ import numpy as np
 from simulation.optimizer_new import optimize_racing_line, RacingLineModel, get_available_models
 from models.track import Track, Car, TrackInput
 from models.response import SimulationResponse
+
 import json
 
 # Initialize FastAPI app
@@ -98,24 +99,8 @@ async def get_models():
     except Exception as e:
         print(f"Error getting models: {e}")
         # Fallback models
-        return {
-            "models": [
-                {
-                    "id": "physics_based",
-                    "name": "Physics-Based Model",
-                    "description": "Based on research paper with vehicle dynamics",
-                    "track_usage": "70%",
-                    "characteristics": ["Research-based", "Aggressive", "Realistic"]
-                },
-                {
-                    "id": "basic",
-                    "name": "Basic Model",
-                    "description": "Simple geometric approach",
-                    "track_usage": "60%",
-                    "characteristics": ["Simple", "Smooth", "Learning-friendly"]
-                }
-            ]
-        }
+
+
 
 @app.get("/api/track")
 async def get_track():

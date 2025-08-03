@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Tuple, Optional
+from enum import Enum
 
 class Car(BaseModel):
     """
@@ -42,4 +43,6 @@ class TrackInput(BaseModel):
     """
     trackWidth: float = Field(..., description="Width of the track in meters")
     trackLength: float = Field(..., description="Length of the track in kilometers")
-    discretizationStep: float = Field(..., description="Step size for track discretization") 
+    discretizationStep: float = Field(..., description="Step size for track discretization")
+
+ 

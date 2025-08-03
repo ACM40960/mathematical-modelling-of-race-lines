@@ -9,6 +9,7 @@ import React, {
   useCallback,
 } from "react";
 import { Point, Car, Track } from "../types";
+
 import paper from "paper";
 
 interface SimulationResult {
@@ -1420,6 +1421,9 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     setIsSimulating(true);
     try {
       const trackPoints = internalTrackPoints;
+
+      let data;
+
       const requestData = {
         track_points: trackPoints.map((p) => ({ x: p.x, y: p.y })),
         width: trackWidth,
@@ -1447,11 +1451,11 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
         );
       }
 
-      const data = await response.json();
+      data = await response.json();
       console.log("Simulation results:", data);
 
       if (onSimulationResults && data) {
-        onSimulationResults(data);
+        onSimulationResults(data.optimal_lines);
       }
 
       // Start animation with the results

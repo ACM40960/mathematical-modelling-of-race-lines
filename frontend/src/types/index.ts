@@ -41,4 +41,6 @@ export interface SimulationResult {
   coordinates: [number, number][];
   speeds: number[];
   lap_time: number;
-} 
+}
+
+ 
