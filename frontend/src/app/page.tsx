@@ -1,263 +1,114 @@
 "use client";
 
-import React, { useState } from "react";
-import TrackControl from "@/components/TrackControl";
-import CarControl from "@/components/CarControl";
-import Header from "@/components/Header";
-
-import { Track, Car, Point, SimulationResult, TrackPreset } from "@/types";
-import dynamic from "next/dynamic";
-
-// Dynamically import CanvasDrawPaper with no SSR to avoid Paper.js server-side issues
-const CanvasDrawPaper = dynamic(() => import("@/components/CanvasDrawPaper"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full flex items-center justify-center bg-gray-100 rounded border border-gray-300">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-        <div className="text-blue-600 font-mono text-sm">
-          INITIALIZING CANVAS...
-        </div>
-      </div>
-    </div>
-  ),
-});
+import React from "react";
+import Link from "next/link";
 
 export default function Home() {
-  // Track state
-  const [lines, setLines] = useState<Point[][]>([]);
-  const [trackWidth, setTrackWidth] = useState<number>(20);
-  const [trackLength, setTrackLength] = useState<number>(0);
-  const [discretizationStep, setDiscretizationStep] = useState<number>(0.1);
-  const [track, setTrack] = useState<Track | null>(null);
-  const [selectedTrackName, setSelectedTrackName] = useState<string | undefined>(undefined);
-
-  // Track selector state
-  const [isTrackSelectorOpen, setIsTrackSelectorOpen] = useState(false);
-
-  // Cars state
-  const [cars, setCars] = useState<Car[]>([]);
-
-  // Racing line model state
-  const [selectedModel, setSelectedModel] = useState<string>("physics_based");
-
-  // Simulation results state
-  const [simulationResults, setSimulationResults] = useState<
-    SimulationResult[]
-  >([]);
-
-  // Clear all drawn lines and results
-  const handleClear = () => {
-    setLines([]);
-    setTrack(null);
-    setSimulationResults([]);
-    setSelectedTrackName(undefined);
-  };
-
-  // Handle track updates from canvas
-  const handleTrackUpdate = (
-    trackPoints: Point[],
-    curvature: number[],
-    length: number
-  ) => {
-    setLines([trackPoints]);
-    setTrackLength(length);
-
-    // If user manually draws, clear selected track name
-    if (selectedTrackName) {
-      setSelectedTrackName(undefined);
-    }
-
-    // Update track object
-    setTrack({
-      track_points: trackPoints,
-      width: trackWidth,
-      friction: 0.8,
-      cars: cars,
-    });
-  };
-
-  // Handle track selection from Header
-  const handleTrackSelect = (trackPreset: TrackPreset) => {
-    // Update lines with preset track points
-    setLines([trackPreset.track_points]);
-
-    // Update track state
-    setTrack({
-      track_points: trackPreset.track_points,
-      width: trackPreset.width,
-      friction: trackPreset.friction,
-      cars: cars,
-    });
-
-    // Update track parameters
-    setTrackWidth(trackPreset.width);
-    setTrackLength(trackPreset.track_length / 1000); // Convert meters to kilometers
-    setSelectedTrackName(trackPreset.name);
-
-    // Clear any existing simulation results
-    setSimulationResults([]);
-
-    console.log("Selected track:", trackPreset.name);
-  };
-
-  // Handle custom track selection from Header
-  const handleCustomTrack = () => {
-    setSelectedTrackName(undefined);
-    // Don't clear existing track, just remove the preset name
-  };
-
-  // Handle track length change
-  const handleTrackLengthChange = (length: number) => {
-    setTrackLength(length);
-  };
-
-  // Handle track width change
-  const handleTrackWidthChange = (width: number) => {
-    setTrackWidth(width);
-    // Update track object if it exists
-    if (track) {
-      setTrack({ ...track, width });
-    }
-  };
-
-  // Handle discretization step change
-  const handleDiscretizationStepChange = (step: number) => {
-    setDiscretizationStep(step);
-  };
-
-  // Handle car updates
-  const handleCarsUpdate = (newCars: Car[]) => {
-    setCars(newCars);
-    // Update track object if it exists
-    if (track) {
-      setTrack({ ...track, cars: newCars });
-    }
-  };
-
-  // Handle simulation
-  const handleSimulation = async () => {
-    if (!track || track.track_points.length === 0) {
-      alert("Please draw a track first!");
-      return;
-    }
-
-    if (cars.length === 0) {
-      alert("Please add at least one car configuration!");
-      return;
-    }
-
-    try {
-      const response = await fetch("http://localhost:8000/api/track", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          track: track,
-          model_type: selectedModel,
-          discretization_step: discretizationStep,
-        }),
-      });
-
-      if (response.ok) {
-        const results = await response.json();
-        setSimulationResults(results.racing_lines);
-        console.log("Simulation completed:", results);
-      } else {
-        const errorData = await response.json();
-        alert(`Simulation failed: ${errorData.detail}`);
-      }
-    } catch (error) {
-      console.error("Error during simulation:", error);
-      alert("Error during simulation. Please try again.");
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header with integrated track selection */}
-      <Header 
-        selectedTrackName={selectedTrackName}
-        onTrackSelect={handleTrackSelect}
-        onCustomTrack={handleCustomTrack}
-      />
-
-      <div className="flex h-[calc(100vh-64px)]">
-        {/* Main Canvas Area */}
-        <div className="flex-1 p-4">
-          <div className="w-full h-full bg-white rounded-lg shadow-sm border border-gray-200">
-            <CanvasDrawPaper
-              lines={lines}
-              setLines={setLines}
-              handleClear={handleClear}
-              trackWidth={trackWidth}
-              onTrackUpdate={handleTrackUpdate}
-              onTrackLengthChange={handleTrackLengthChange}
-              cars={cars}
-              simulationResults={simulationResults}
-              onSimulationResults={setSimulationResults}
-              selectedModel={selectedModel}
-            />
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 py-6">
+          <div className="flex items-center">
+            <div className="text-2xl font-bold text-gray-900">🏁 F1 Racing Lines</div>
           </div>
         </div>
+      </div>
 
-        {/* Right Sidebar */}
-        <div className="w-80 bg-white border-l border-gray-200 p-4 space-y-4 overflow-y-auto">
-          {/* Track Controls */}
-          <TrackControl
-            trackWidth={trackWidth}
-            onTrackWidthChange={handleTrackWidthChange}
-            trackLength={trackLength}
-            discretizationStep={discretizationStep}
-            onDiscretizationStepChange={handleDiscretizationStepChange}
-            onClear={handleClear}
-          />
+      {/* Main Navigation */}
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            F1 Racing Line Simulator
+          </h1>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Design tracks, configure cars, and analyze physics-based racing lines with real-time parameter sensitivity analysis.
+          </p>
+        </div>
 
-                     {/* Car Controls */}
-           <CarControl 
-             cars={cars} 
-             setCars={handleCarsUpdate}
-             track={track}
-             selectedModel={selectedModel}
-             setSelectedModel={setSelectedModel}
-           />
-
-          {/* Model Selection */}
-          <div className="p-4 border border-gray-300 rounded">
-            <h3 className="font-semibold text-gray-800 mb-3">Racing Line Model</h3>
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="basic">Basic Model</option>
-              <option value="physics_based">Physics-Based Model</option>
-            </select>
-          </div>
-
-          {/* Simulation Button */}
-          <button
-            onClick={handleSimulation}
-            className="w-full px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors font-medium"
-          >
-            Calculate Racing Line
-          </button>
-
-          {/* Results Display */}
-          {simulationResults.length > 0 && (
-            <div className="p-4 border border-gray-300 rounded">
-              <h3 className="font-semibold text-gray-800 mb-3">Results</h3>
-              {simulationResults.map((result, index) => (
-                <div key={index} className="mb-2 p-2 bg-gray-50 rounded text-sm">
-                  <div className="font-medium">Car {index + 1}</div>
-                  <div>Lap Time: {result.lap_time.toFixed(3)}s</div>
-                                     <div>Points: {result.coordinates.length}</div>
+        {/* Navigation Cards */}
+        <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+          
+          {/* Track Designer Card */}
+          <Link href="/track-designer" className="group">
+            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-8 hover:shadow-xl transition-shadow">
+              <div className="text-center">
+                <div className="text-6xl mb-4">🏁</div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4 group-hover:text-blue-600 transition-colors">
+                  Track Designer
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  Design custom tracks, configure F1 cars, and simulate physics-based racing lines with our interactive canvas.
+                </p>
+                
+                {/* Features */}
+                <div className="text-left space-y-2 mb-6">
+                  <div className="flex items-center text-sm text-gray-700">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
+                    Interactive track drawing canvas
+                  </div>
+                  <div className="flex items-center text-sm text-gray-700">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
+                    2025 F1 circuit presets
+                  </div>
+                  <div className="flex items-center text-sm text-gray-700">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
+                    Car configuration controls
+                  </div>
+                  <div className="flex items-center text-sm text-gray-700">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
+                    Physics-based simulation
+                  </div>
                 </div>
-              ))}
+
+                <div className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium group-hover:bg-blue-700 transition-colors">
+                  Open Track Designer →
+                </div>
+              </div>
             </div>
-          )}
+          </Link>
+
+          {/* Parameter Analysis Card */}
+          <Link href="/parameter-analysis" className="group">
+            <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-8 hover:shadow-xl transition-shadow">
+              <div className="text-center">
+                <div className="text-6xl mb-4">🔬</div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4 group-hover:text-blue-600 transition-colors">
+                  Parameter Analysis
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  Real-time parameter sensitivity analysis showing how car physics affect lap times and performance.
+                </p>
+
+                {/* Features */}
+                <div className="text-left space-y-2 mb-6">
+                  <div className="flex items-center text-sm text-gray-700">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
+                    Auto-run parameter analysis
+                  </div>
+                  <div className="flex items-center text-sm text-gray-700">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
+                    Real-time graph updates
+                  </div>
+                  <div className="flex items-center text-sm text-gray-700">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
+                    Interactive parameter controls
+                  </div>
+                  <div className="flex items-center text-sm text-gray-700">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
+                    Physics simulation based
+                  </div>
+                </div>
+
+                <div className="bg-purple-600 text-white px-6 py-3 rounded-lg font-medium group-hover:bg-purple-700 transition-colors">
+                  Open Parameter Analysis →
+                </div>
+              </div>
+            </div>
+          </Link>
         </div>
+
+
       </div>
     </div>
   );

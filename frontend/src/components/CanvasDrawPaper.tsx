@@ -92,6 +92,10 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
   // Add internal state to track if we have a track (independent of parent's lines state)
   const [hasTrack, setHasTrack] = useState(false);
   
+  // Track the source of the current track to prevent redundant operations
+  const lastTrackSource = useRef<'none' | 'custom' | 'preset'>('none');
+  const lastTrackHash = useRef<string>('');
+  
   // Zoom state management
   const [zoomLevel, setZoomLevel] = useState(1.8); // Start with current default
   const minZoom = 0.1;
@@ -1105,11 +1109,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     outerPath.current = null;
     // Keep currentPath.current reference since we're not removing it
 
-    // DISABLE setLines - it's causing canvas clearing
-    // setLines([points]);
-    console.log("[handleMouseUp] DISABLED setLines to prevent canvas clearing");
-
-    // Store track points internally for car positioning
+    // Store track points internally for car positioning FIRST
     setInternalTrackPoints(points);
     console.log(
       "[handleMouseUp] Stored",
@@ -1117,13 +1117,28 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       "track points internally"
     );
 
-    // Clear the drawing flag immediately since we're not updating state
-    setIsDrawingTrack(false);
     // Set hasTrack flag to indicate we now have a track
     setHasTrack(true);
-    console.log(
-      "[handleMouseUp] Cleared drawing flag immediately and set hasTrack=true"
-    );
+    
+    // Update tracking refs for custom track
+    const customHash = createTrackHash(points);
+    lastTrackHash.current = customHash;
+    lastTrackSource.current = 'custom';
+    console.log("[handleMouseUp] Set hasTrack=true and marked as custom track");
+
+    // Clear the drawing flag immediately since we're not updating state
+    setIsDrawingTrack(false);
+
+    // Now update parent state - the useEffect will recognize this as existing track
+    console.log("[handleMouseUp] Updating parent with custom track points");
+    setLines([points]);
+    
+    // Notify parent component about track update
+    if (onTrackUpdate) {
+      const length = calculateTrackLength(points);
+      const curvature = calculateCurvature(points);
+      onTrackUpdate(points, curvature, length);
+    }
 
     console.log("[handleMouseUp] AFTER setLines:", {
       totalChildren: paper.project.activeLayer.children.length,
@@ -1446,7 +1461,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
 
   // Handle simulation and animation
   const handleAnimateClick = useCallback(async () => {
-    console.log("Play button clicked");
+    console.log("Simulation/Animation button clicked");
 
     // If we're currently animating, stop it
     if (isAnimating) {
@@ -1927,6 +1942,10 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     setHasTrack(false);
     setIsDrawingTrack(false);
     setInternalTrackPoints([]); // Clear internal track points
+    
+    // Reset tracking state
+    lastTrackSource.current = 'none';
+    lastTrackHash.current = '';
 
     // Clear parent component state
     handleClear();
@@ -2302,25 +2321,39 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     paper.view.update();
   };
 
-  // Watch for lines changes to draw preset tracks
+  // Helper function to create a hash for track points
+  const createTrackHash = (points: Point[]): string => {
+    return points.length > 0 ? `${points.length}-${points[0].x}-${points[0].y}-${points[Math.floor(points.length/2)]?.x || 0}` : '';
+  };
+
+  // Watch for lines changes to draw preset tracks (FIXED: removed circular dependency)
   useEffect(() => {
     if (lines.length === 1 && lines[0].length > 0 && paper && !isDrawingTrack) {
-      // Check if this is a preset track (any track with multiple points)
       const trackPoints = lines[0];
-      if (trackPoints.length > 5) {
-        // This is likely a preset track, redraw it properly scaled
-        console.log(`[CanvasDrawPaper] Drawing preset track with ${trackPoints.length} points`);
+      const currentHash = createTrackHash(trackPoints);
+      
+      // Check if this is a new track from external source (preset)
+      if (currentHash !== lastTrackHash.current && trackPoints.length > 5) {
+        console.log(`[CanvasDrawPaper] New external track detected, drawing ${trackPoints.length} points`);
+        lastTrackHash.current = currentHash;
+        lastTrackSource.current = 'preset';
+        
+        // Use setTimeout to prevent direct state mutation during render
         setTimeout(() => {
           drawPresetTrack(trackPoints);
-        }, 100);
+        }, 0);
+      } else {
+        console.log(`[CanvasDrawPaper] Track unchanged or custom track, skipping redraw`);
       }
     } else if (lines.length === 0 && paper) {
-      // Lines were cleared, ensure internalTrackPoints are also cleared
-      console.log(`[CanvasDrawPaper] Lines cleared, clearing internalTrackPoints`);
+      // Lines were cleared
+      console.log(`[CanvasDrawPaper] Lines cleared, resetting track state`);
       setInternalTrackPoints([]);
       setHasTrack(false);
+      lastTrackSource.current = 'none';
+      lastTrackHash.current = '';
     }
-  }, [lines, paper, isDrawingTrack]);
+  }, [lines, paper, isDrawingTrack]); // FIXED: Removed internalTrackPoints from dependencies
 
   return (
     <div className="w-full h-full relative bg-gray-50">
