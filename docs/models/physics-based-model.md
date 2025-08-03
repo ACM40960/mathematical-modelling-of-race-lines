@@ -79,12 +79,12 @@ Where:
 #### Extended Formula with Aerodynamics
 
 ```math
-v_max = √[(μ × (M×g + F_downforce)) / (M × κ)]
+v_max = √[(μ × (M×g + F_{downforce})) / (M × κ)]
 ```
 
 **Downforce calculation**:
 ```math
-F_downforce = 0.5 × ρ × C_L × A × v²
+F_{downforce} = 0.5 × ρ × C_L × A × v²
 ```
 
 This creates a **recursive relationship** where downforce depends on speed, requiring iterative solution.
@@ -100,7 +100,7 @@ F_drag = 0.5 × ρ × C_D × A × v²
 
 #### Downforce (Enhanced Grip)
 ```math
-F_downforce = 0.5 × ρ × C_L × A × v²
+F_{downforce} = 0.5 × ρ × C_L × A × v²
 ```
 
 **Effect**: Increases cornering capability
@@ -109,14 +109,14 @@ F_downforce = 0.5 × ρ × C_L × A × v²
 
 #### Maximum Acceleration
 ```math
-a_actual = min(a_max, μ×g + μ×F_downforce/M)
+a_{actual} = min(a_max, μ×g + μ×F_{downforce}/M)
 ```
 
 The vehicle can only accelerate as fast as the tires can grip.
 
 #### Braking Distance
 ```math
-d_brake = v₁² / (2 × a_max)
+d_{brake} = v₁² / (2 × a_max)
 ```
 
 Used to determine braking zones before corners.
@@ -126,13 +126,13 @@ Used to determine braking zones before corners.
 For circular motion at speed `v` with radius `R`:
 
 ```math
-F_centripetal = M × v² / R = M × v² × κ
+F_{centripetal} = M × v² / R = M × v² × κ
 ```
 
 **Balance condition**: Available grip ≥ Required centripetal force
 
 ```math
-μ × (M×g + F_downforce) ≥ M × v² × κ
+μ × (M×g + F_{downforce}) ≥ M × v² × κ
 ```
 
 ### 5. Optimal Racing Line Geometry
@@ -146,7 +146,7 @@ The model implements **geometric optimization** based on:
 
 #### Track Usage Formula
 ```math
-n(s) = f(κ(s), v_max(s), a_max, track_phase)
+n(s) = f(κ(s), v_max(s), a_max, track\_phase)
 ```
 
 Where `track_phase` determines entry/apex/exit positioning.
@@ -180,7 +180,7 @@ v_max_squared = max_lateral_force / (mass * abs(kappa))
 
 **Mathematical Impact**:
 ```math
-d_brake = v² / (2 × a_max)
+d_{brake} = v² / (2 × a_max)
 ```
 
 **Physics Effects**:
@@ -203,7 +203,7 @@ if distance_to_corner <= braking_distance * 0.1:
 
 **Mathematical Impact**:
 ```math
-R_min = L / tan(δ_max)
+R_{min} = L / tan(δ_max)
 ```
 
 Where `L` is wheelbase.
@@ -219,7 +219,7 @@ Where `L` is wheelbase.
 
 **Mathematical Impact**:
 ```math
-F_drag = 0.5 × ρ × C_D × A × v²
+F_{drag} = 0.5 × ρ × C_D × A × v²
 ```
 
 **Physics Effects**:
@@ -239,8 +239,8 @@ F_drag = 0.5 × ρ × C_D × A × v²
 
 **Mathematical Impact**:
 ```math
-F_downforce = 0.5 × ρ × C_L × A × v²
-v_max = √[(μ × (Mg + F_downforce)) / (M × κ)]
+F_{downforce} = 0.5 × ρ × C_L × A × v²
+v_max = √[(μ × (Mg + F_{downforce})) / (M × κ)]
 ```
 
 **Physics Effects**:
@@ -380,46 +380,3 @@ Subject to:
 3. **Braking Zones**: Mass and brake capability
 
 ---
-
-## Physical Interpretation
-
-### Why These Parameters Matter
-
-1. **Mass (650-950 kg)**:
-   - F1 minimum weight: ~795 kg (with driver)
-   - Range covers different fuel loads and car setups
-   - Lighter = faster acceleration, shorter braking, better power-to-weight
-
-2. **Max Acceleration (6-18 m/s²)**:
-   - F1 typical: ~12-15 m/s² under braking
-   - Range covers wet/dry conditions and degraded tires
-   - Higher = shorter braking zones, better corner exit
-
-3. **Steering Angle (15-50°)**:
-   - F1 typical: ~25-35° maximum
-   - Range covers different steering rack setups
-   - Higher = tighter minimum radius, better low-speed cornering
-
-4. **Drag Coefficient (0.3-3.0)**:
-   - F1 typical: ~0.9-1.1 depending on wing configuration
-   - Range covers different aerodynamic packages
-   - Lower = higher top speed, better straight-line performance
-
-5. **Downforce Coefficient (0.5-8.0)**:
-   - F1 typical: ~2.5-4.0 depending on track
-   - Range covers low-downforce (Monza) to high-downforce (Monaco) setups
-   - Higher = faster cornering, better grip at high speed
-
-### Real-World Applications
-
-This model can be used for:
-
-1. **Setup Optimization**: Find optimal aerodynamic balance
-2. **Strategy Planning**: Understand performance trade-offs
-3. **Driver Training**: Visualize optimal racing lines
-4. **Vehicle Development**: Evaluate design changes
-5. **Race Analysis**: Understand why certain lines are faster
-
----
-
-*This documentation provides the complete mathematical foundation for understanding how vehicle parameters affect racing line optimization through fundamental physics principles.*
