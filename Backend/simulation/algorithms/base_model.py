@@ -20,7 +20,8 @@ class BaseRacingLineModel(ABC):
         self.characteristics = characteristics
     
     @abstractmethod
-    def calculate_racing_line(self, track_points: np.ndarray, curvature: np.ndarray, track_width: float) -> np.ndarray:
+    def calculate_racing_line(self, track_points: np.ndarray, curvature: np.ndarray, track_width: float, 
+                             car_params: dict = None, friction: float = 1.0) -> np.ndarray:
         """
         Calculate the racing line for given track points
         
@@ -28,6 +29,8 @@ class BaseRacingLineModel(ABC):
             track_points: Array of (x, y) coordinates defining the track centerline
             curvature: Array of curvature values at each point
             track_width: Width of the track in meters
+            car_params: Dictionary containing car physical parameters (mass, length, etc.)
+            friction: Track friction coefficient
             
         Returns:
             Array of (x, y) coordinates defining the racing line

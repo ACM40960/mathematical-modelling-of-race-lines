@@ -23,7 +23,8 @@ class BasicModel(BaseRacingLineModel):
             characteristics=["Simple", "Smooth", "Learning-friendly"]
         )
     
-    def calculate_racing_line(self, track_points: np.ndarray, curvature: np.ndarray, track_width: float) -> np.ndarray:
+    def calculate_racing_line(self, track_points: np.ndarray, curvature: np.ndarray, track_width: float, 
+                             car_params: dict = None, friction: float = 1.0) -> np.ndarray:
         """
         Calculate racing line using basic geometric approach
         

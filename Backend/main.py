@@ -83,17 +83,34 @@ async def simulate_racing_line(request: SimulationRequest):
     """
     Calculate optimal racing line for given track and car parameters
     """
-    print("\n=== SIMULATE ENDPOINT HIT ===")
-    print("Received request with:")
-    print(f"Number of track points: {len(request.track_points)}")
-    print(f"Track width: {request.width}")
-    print(f"Track friction: {request.friction}")
-    print(f"Number of cars: {len(request.cars)}")
-    print(f"Model: {request.model}")
-    print("================================\n")
-
-    # Debug info for track points
-    print(f"Track points sample: {request.track_points[:3] if len(request.track_points) > 3 else request.track_points}")
+    print("\n" + "="*60)
+    print("🏎️  SIMULATE ENDPOINT HIT - FULL DEBUG")
+    print("="*60)
+    print("📊 TRACK PARAMETERS:")
+    print(f"   • Number of track points: {len(request.track_points)}")
+    print(f"   • Track width: {request.width} meters")
+    print(f"   • Track friction: {request.friction}")
+    print(f"   • Model: {request.model}")
+    
+    print(f"\n🚗 CAR CONFIGURATION ({len(request.cars)} cars):")
+    for i, car_data in enumerate(request.cars):
+        print(f"   Car {i+1}:")
+        print(f"      • ID: {car_data.get('id', 'Unknown')}")
+        print(f"      • Mass: {car_data.get('mass', 'Not provided')} kg")
+        print(f"      • Length: {car_data.get('length', 'Not provided')} m")
+        print(f"      • Width: {car_data.get('width', 'Not provided')} m")
+        print(f"      • Max Steering Angle: {car_data.get('max_steering_angle', 'Not provided')}°")
+        print(f"      • Max Acceleration: {car_data.get('max_acceleration', 'Not provided')} m/s²")
+        print(f"      • Drag Coefficient: {car_data.get('drag_coefficient', 'Not provided')}")
+        print(f"      • Lift Coefficient: {car_data.get('lift_coefficient', 'Not provided')}")
+        print(f"      • Frontal Area: {car_data.get('frontal_area', 'Not provided')} m²")
+    
+    print(f"\n📍 TRACK POINTS SAMPLE:")
+    print(f"   • First 3 points: {request.track_points[:3] if len(request.track_points) > 3 else request.track_points}")
+    
+    print(f"\n🔧 RAW REQUEST DATA:")
+    print(f"   • Full car data: {request.cars}")
+    print("="*60)
 
     
     try:
@@ -109,19 +126,65 @@ async def simulate_racing_line(request: SimulationRequest):
             cars=cars
         )
         
+        # Debug: Show converted Track object
+        print(f"\n✅ TRACK OBJECT CREATED SUCCESSFULLY:")
+        print(f"   • Track points: {len(track.track_points)} points")
+        print(f"   • Track width: {track.width} meters")
+        print(f"   • Track friction: {track.friction}")
+        print(f"   • Number of cars in track: {len(track.cars)}")
+        
+        print(f"\n🚗 CONVERTED CAR OBJECTS:")
+        for i, car in enumerate(track.cars):
+            print(f"   Car {i+1} (converted to Car object):")
+            print(f"      • ID: {car.id}")
+            print(f"      • Mass: {car.mass} kg")
+            print(f"      • Length: {car.length} m")
+            print(f"      • Width: {car.width} m")
+            print(f"      • Max Steering Angle: {car.max_steering_angle}°")
+            print(f"      • Max Acceleration: {car.max_acceleration} m/s²")
+            print(f"      • Drag Coefficient: {car.drag_coefficient}")
+            print(f"      • Lift Coefficient: {car.lift_coefficient}")
+            print(f"      • Effective Frontal Area: {car.effective_frontal_area} m²")
+        
         # Validate and set the model
         try:
             model = RacingLineModel(request.model)
         except ValueError:
-            print(f"Warning: Unknown model '{request.model}', using physics_based")
+            print(f"⚠️  Warning: Unknown model '{request.model}', using physics_based")
             model = RacingLineModel.PHYSICS_BASED
+        
+        print(f"\n SELECTED MODEL: {model.value}")
+        print("-" * 60)
         
         # Run simulation with the specified model
         optimal_lines = optimize_racing_line(track, model)
         
-        print("\n=== SIMULATION COMPLETED ===")
+        print("\n" + "="*60)
+        print("🏁 SIMULATION COMPLETED - LAP TIME COMPARISON")
+        print("="*60)
         print(f"Generated {len(optimal_lines)} optimal lines using {model.value} model")
-        print("================================\n")
+        
+        # Show lap time comparison
+        for i, line in enumerate(optimal_lines):
+            car_id = line.get('car_id', f'Car {i+1}')
+            lap_time = line.get('lap_time', 0)
+            avg_speed = np.mean(line.get('speeds', [0])) if line.get('speeds') else 0
+            print(f"🏎️  {car_id}: {lap_time:.2f}s (avg: {avg_speed:.1f} m/s)")
+        
+        # Find fastest and slowest
+        if len(optimal_lines) > 1:
+            lap_times = [line.get('lap_time', 999) for line in optimal_lines]
+            fastest_idx = np.argmin(lap_times)
+            slowest_idx = np.argmax(lap_times)
+            
+            fastest_car = optimal_lines[fastest_idx].get('car_id', 'Unknown')
+            slowest_car = optimal_lines[slowest_idx].get('car_id', 'Unknown')
+            time_diff = lap_times[slowest_idx] - lap_times[fastest_idx]
+            
+            print(f"\n🥇 Fastest: {fastest_car} ({lap_times[fastest_idx]:.2f}s)")
+            print(f"🐌 Slowest: {slowest_car} ({lap_times[slowest_idx]:.2f}s)")
+            print(f"⏱️  Time difference: {time_diff:.2f}s")
+        print("="*60 + "\n")
         
         return {"optimal_lines": optimal_lines}
     except Exception as e:
