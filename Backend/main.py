@@ -50,7 +50,7 @@ async def startup_event():
         
         if new_tracks_added > 0:
             db.commit()
-            print(f"✅ Added {new_tracks_added} new tracks to database")
+            print(f"Added {new_tracks_added} new tracks to database")
         
         db.close()
     except Exception as e:
@@ -77,7 +77,7 @@ async def simulate_racing_line(request: SimulationRequest):
     Calculate optimal racing line for given track and car parameters
     """
     # Log basic simulation parameters
-    print(f"🏎️ Starting simulation: {len(request.cars)} cars, {len(request.track_points)} track points, model: {request.model}")
+    print(f"Starting simulation: {len(request.cars)} cars, {len(request.track_points)} track points, model: {request.model}")
 
     
     try:
@@ -97,9 +97,10 @@ async def simulate_racing_line(request: SimulationRequest):
         
         # Validate and set the model
         try:
+            # get the requested model
             model = RacingLineModel(request.model)
         except ValueError:
-            print(f"⚠️ Warning: Unknown model '{request.model}', using physics_based")
+            print(f"Warning: Unknown model '{request.model}', using physics_based")
             model = RacingLineModel.PHYSICS_BASED
         
         # Run simulation with the specified model
@@ -107,11 +108,11 @@ async def simulate_racing_line(request: SimulationRequest):
         
         # Log simulation completion
         lap_times = [line.get('lap_time', 0) for line in optimal_lines]
-        print(f"✅ Simulation completed: {len(optimal_lines)} cars, fastest lap: {min(lap_times):.2f}s")
+        print(f"Simulation completed: {len(optimal_lines)} cars, fastest lap: {min(lap_times):.2f}s")
         
         return {"optimal_lines": optimal_lines}
     except Exception as e:
-        print(f"❌ Simulation error: {str(e)}")
+        print(f"Simulation error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/models")
@@ -130,7 +131,8 @@ async def get_models():
                     "id": "physics_based",
                     "name": "Physics-Based Model",
                     "description": "Based on research paper with vehicle dynamics",
-                    "track_usage": "70%",
+                    # this factor essentially describes how aggressive the car is when at corners
+                    "track_usage": "80%", 
                     "characteristics": ["Research-based", "Aggressive", "Realistic"]
                 },
                 {
@@ -143,46 +145,6 @@ async def get_models():
             ]
         }
 
-@app.get("/api/track")
-async def get_track():
-    """
-    Returns sample track data.
-    In a real implementation, this would use the track parameters to generate the track.
-    """
-    # Sample track data - a simple circular track
-    t = np.linspace(0, 2*np.pi, 100)
-    radius = 100  # meters
-    
-    # Generate x, y coordinates for a circle
-    x = radius * np.cos(t)
-    y = radius * np.sin(t)
-    
-    # Calculate curvature (constant for a circle = 1/radius)
-    curvature = np.full_like(t, 1/radius)
-    
-    return {
-        "track_points": [{"x": float(x[i]), "y": float(y[i])} for i in range(len(t))],
-        "curvature": [float(k) for k in curvature],
-        "track_length": float(2 * np.pi * radius),  # Circumference
-        "message": "Sample circular track generated"
-    }
-
-@app.post("/api/track")
-async def process_track(track_data: TrackInput):
-    """
-    Receives and processes track data from the frontend
-    """
-    # Track data received
-    
-    return {
-        "status": "success",
-        "message": "Track data received successfully",
-        "data": {
-            "trackWidth": track_data.trackWidth,
-            "trackLength": track_data.trackLength,
-            "discretizationStep": track_data.discretizationStep
-        }
-    } 
 
 @app.get("/tracks", response_model=List[TrackListItem])
 async def get_tracks_list(
@@ -237,6 +199,7 @@ async def get_track_by_id(track_id: int, db: Session = Depends(get_db)):
         from schemas.track import TrackPoint
         track_points = [TrackPoint(**point) for point in track.track_points]
         
+        # returning track metadata with the track points
         return TrackPreset(
             id=track.id,
             name=track.name,

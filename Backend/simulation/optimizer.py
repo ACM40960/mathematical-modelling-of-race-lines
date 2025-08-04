@@ -494,3 +494,17 @@ def get_available_models() -> List[Dict]:
         models.append(model_info)
     
     return models 
+    
+    return racing_lines
+
+def get_available_models() -> List[Dict]:
+    """
+    Get information about all available racing line models
+    """
+    models = []
+    for model_key, model_instance in MODELS.items():
+        model_info = model_instance.get_model_info()
+        model_info["id"] = model_key.value
+        models.append(model_info)
+    
+    return models 

@@ -22,7 +22,7 @@ class PhysicsBasedModel(BaseRacingLineModel):
         super().__init__(
             name="Physics-Based Model",
             description="Based on research paper with vehicle dynamics",
-            track_usage="70%",
+            track_usage="80%",
             characteristics=["Research-based", "Aggressive", "Realistic"]
         )
     
