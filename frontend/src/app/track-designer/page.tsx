@@ -62,13 +62,13 @@ export default function TrackDesigner() {
     const loadedCars = loadCars();
     const loadedResults = loadSimulationResults();
     const loadedSettings = loadTrackSettings();
-    const loadedLines = loadLines();
+    // REMOVED: const loadedLines = loadLines(); // This was causing random graphs on refresh
     const loadedModel = loadSelectedModel();
 
     if (loadedTrack) setTrack(loadedTrack);
     if (loadedCars.length > 0) setCars(loadedCars);
     if (loadedResults.length > 0) setSimulationResults(loadedResults);
-    if (loadedLines.length > 0) setLines(loadedLines);
+    // REMOVED: if (loadedLines.length > 0) setLines(loadedLines); // This was causing random graphs on refresh
     
     setTrackWidth(loadedSettings.trackWidth);
     setTrackLength(loadedSettings.trackLength);
@@ -76,7 +76,7 @@ export default function TrackDesigner() {
     setSelectedTrackName(loadedSettings.selectedTrackName);
     setSelectedModel(loadedModel);
 
-    console.log('🏁 Track Designer loaded with saved data');
+    console.log('🏁 Track Designer loaded with saved data (lines loading disabled to prevent random graphs)');
   }, []);
 
   // Save data to localStorage when state changes
@@ -101,9 +101,10 @@ export default function TrackDesigner() {
     });
   }, [trackWidth, trackLength, discretizationStep, selectedTrackName]);
 
-  useEffect(() => {
-    saveLines(lines);
-  }, [lines]);
+  // REMOVED: Auto-save lines to localStorage (was causing random graphs on refresh)
+  // useEffect(() => {
+  //   saveLines(lines);
+  // }, [lines]);
 
   useEffect(() => {
     saveSelectedModel(selectedModel);
@@ -126,6 +127,8 @@ export default function TrackDesigner() {
     setTrack(null);
     setSimulationResults([]);
     setSelectedTrackName(undefined);
+    // Also clear lines from localStorage to prevent future random graphs
+    localStorage.removeItem('f1_racing_lines');
   };
 
   // Handle track updates from canvas
@@ -226,9 +229,9 @@ export default function TrackDesigner() {
     }
 
     try {
-      console.log("Starting simulation with track:", track);
-      console.log("Cars:", cars);
-      console.log("Model:", selectedModel);
+          console.log("Starting simulation with track:", track);
+    console.log("Cars:", cars);
+    console.log("🔍 Selected model in main page:", selectedModel);
 
       const response = await fetch("http://localhost:8000/simulate", {
         method: "POST",
