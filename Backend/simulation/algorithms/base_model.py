@@ -148,4 +148,5 @@ class BaseRacingLineModel(ABC):
             "description": self.description,
             "track_usage": self.track_usage,
             "characteristics": self.characteristics
-        } 
+        }
+ 
