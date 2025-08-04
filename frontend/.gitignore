@@ -68,5 +68,3 @@ temp/
 # Storybook build outputs
 .out
 .storybook-out
-
-docs/models/paper.md
