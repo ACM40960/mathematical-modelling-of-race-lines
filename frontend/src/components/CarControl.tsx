@@ -35,6 +35,7 @@ const validationRules: Record<
     | "suspension_stiffness"
     | "tire_compound"
     | "effective_frontal_area"
+    | "model"
   >,
   ValidationRule
 > = {
@@ -139,9 +140,14 @@ const CarControl: React.FC<CarControlProps> = ({
   const addCar = () => {
     const newCarIndex = cars.length;
     const colorSet = defaultColors[newCarIndex % defaultColors.length];
+    
+    // Generate unique ID using timestamp to avoid duplicates
+    const uniqueId = `car_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    const teamNumber = cars.length + 1;
+    
     const newCar: Car = {
-      id: `car${cars.length + 1}`,
-      team_name: `Team ${cars.length + 1}`,
+      id: uniqueId,
+      team_name: `Team ${teamNumber}`,
       car_color: colorSet.primary,
       accent_color: colorSet.accent,
       mass: validationRules.mass.default,

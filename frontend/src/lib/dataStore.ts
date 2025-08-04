@@ -73,6 +73,7 @@ export const loadSimulationResults = (): SimulationResult[] => {
 // Track settings management
 export const saveTrackSettings = (settings: {
   trackWidth: number;
+  trackFriction: number;
   trackLength: number;
   discretizationStep: number;
   selectedTrackName?: string;
@@ -91,6 +92,7 @@ export const loadTrackSettings = () => {
     const stored = localStorage.getItem(STORAGE_KEYS.TRACK_SETTINGS);
     return stored ? JSON.parse(stored) : {
       trackWidth: 20,
+      trackFriction: 0.8,
       trackLength: 0,
       discretizationStep: 0.1,
       selectedTrackName: undefined
@@ -98,6 +100,7 @@ export const loadTrackSettings = () => {
   }
   return {
     trackWidth: 20,
+    trackFriction: 0.8,
     trackLength: 0,
     discretizationStep: 0.1,
     selectedTrackName: undefined

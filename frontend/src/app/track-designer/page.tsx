@@ -319,7 +319,6 @@ export default function TrackDesigner() {
               trackLength={trackLength}
               discretizationStep={discretizationStep}
               onDiscretizationStepChange={handleDiscretizationStepChange}
-              onClear={handleClear}
             />
 
             {/* Car Controls */}
@@ -330,59 +329,6 @@ export default function TrackDesigner() {
               selectedModel={selectedModel}
               setSelectedModel={setSelectedModel}
             />
-
-            {/* Model Selection */}
-            <div className="p-4 border border-gray-300 rounded">
-              <h3 className="font-semibold text-gray-800 mb-3">Racing Line Model</h3>
-              <select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="basic">Basic Model</option>
-                <option value="physics_based">Physics-Based Model</option>
-              </select>
-            </div>
-
-            {/* Simulation Button */}
-            <button
-              onClick={() => {
-                console.log("🔍 SIMULATE BUTTON CLICKED");
-                console.log("  track:", track);
-                console.log("  track?.track_points.length:", track?.track_points?.length || 0);
-                console.log("  cars.length:", cars.length);
-                console.log("  lines.length:", lines.length);
-                console.log("  selectedModel:", selectedModel);
-                handleSimulation();
-              }}
-              className="w-full px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors font-medium"
-            >
-              Calculate Racing Line
-            </button>
-
-            {/* 🔧 DEBUG: State Inspector */}
-            <button
-              onClick={() => {
-                alert(`DEBUG STATE:
-🎯 Track: ${track ? 'Available' : 'Missing'} (${track?.track_points?.length || 0} points)
-🚗 Cars: ${cars.length} cars
-📏 Lines: ${lines.length} lines
-🔬 Model: ${selectedModel}
-📍 Track Width: ${trackWidth}
-📊 Sim Results: ${simulationResults.length}`);
-                console.log("🔧 FULL DEBUG STATE:", {
-                  track,
-                  cars,
-                  lines,
-                  selectedModel,
-                  trackWidth,
-                  simulationResults
-                });
-              }}
-              className="w-full px-2 py-1 bg-gray-500 text-white rounded text-xs"
-            >
-              🔧 DEBUG STATE
-            </button>
 
             {/* Results Display */}
             {simulationResults.length > 0 && (
@@ -397,17 +343,6 @@ export default function TrackDesigner() {
                 ))}
               </div>
             )}
-
-            {/* Data Sync Status */}
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded text-xs">
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                <span className="text-blue-800 font-medium">Data Auto-Sync Active</span>
-              </div>
-              <p className="text-blue-700 mt-1">
-                Changes automatically sync to Parameter Analysis window
-              </p>
-            </div>
           </div>
         </div>
       </div>
