@@ -161,21 +161,11 @@ def normalize_single_track(track_data: Dict[str, Any],
     if normalizer is None:
         normalizer = TrackNormalizer()
     
-    track_name = track_data.get('name', 'Unknown')
-    print(f"\n🔧 NORMALIZING TRACK: {track_name}")
-    
     # Get original track points
     original_points = track_data.get('track_points', [])
     
     if not original_points:
-        print(f"   ❌ No track points found")
         return track_data
-    
-    # Analyze original bounds
-    original_bounds = normalizer.analyze_track_bounds(original_points)
-    print(f"   📏 Original: {len(original_points)} points")
-    print(f"   📏 Size: {original_bounds['width']:.1f} × {original_bounds['height']:.1f}")
-    print(f"   📏 Range: X({original_bounds['min_x']:.1f} to {original_bounds['max_x']:.1f}), Y({original_bounds['min_y']:.1f} to {original_bounds['max_y']:.1f})")
     
     # Normalize coordinates
     normalized_points, transform_info = normalizer.normalize_track(original_points)
@@ -184,10 +174,6 @@ def normalize_single_track(track_data: Dict[str, Any],
     validation = normalizer.validate_normalization(normalized_points)
     
     if validation['valid']:
-        print(f"   ✅ Normalized: Scale {transform_info['scale_factor']:.3f}")
-        print(f"   ✅ New range: X({validation['bounds']['min_x']:.1f} to {validation['bounds']['max_x']:.1f}), Y({validation['bounds']['min_y']:.1f} to {validation['bounds']['max_y']:.1f})")
-        print(f"   ✅ Centered at: ({validation['bounds']['center_x']:.1f}, {validation['bounds']['center_y']:.1f})")
-        
         # Update track data
         normalized_track = track_data.copy()
         normalized_track['track_points'] = normalized_points
@@ -195,7 +181,6 @@ def normalize_single_track(track_data: Dict[str, Any],
         
         return normalized_track
     else:
-        print(f"   ❌ Normalization failed: {validation}")
         return track_data
 
 
