@@ -47,6 +47,7 @@ export default function TrackDesigner() {
   const [selectedTrackName, setSelectedTrackName] = useState<
     string | undefined
   >(undefined);
+  const [isLoadingPreset, setIsLoadingPreset] = useState(false);
 
   // Cars state
   const [cars, setCars] = useState<Car[]>([]);
@@ -153,8 +154,9 @@ export default function TrackDesigner() {
     setLines([trackPoints]);
     setTrackLength(length);
 
-    // If user manually draws, clear selected track name
-    if (selectedTrackName) {
+    // Only clear selected track name if user manually draws (not when loading preset)
+    if (selectedTrackName && !isLoadingPreset) {
+      console.log("🎨 User manually drew track, clearing preset selection");
       setSelectedTrackName(undefined);
     }
 
@@ -170,6 +172,11 @@ export default function TrackDesigner() {
 
   // Handle track selection from Header
   const handleTrackSelect = (trackPreset: TrackPreset) => {
+    console.log("🏁 Loading preset track:", trackPreset.name);
+
+    // Set loading flag to prevent clearing selectedTrackName
+    setIsLoadingPreset(true);
+
     // Update lines with preset track points
     setLines([trackPreset.track_points]);
 
@@ -188,6 +195,12 @@ export default function TrackDesigner() {
     setTrackLength(trackPreset.track_length / 1000); // Convert meters to kilometers
     setSelectedTrackName(trackPreset.name);
 
+    // Clear loading flag after a short delay to allow canvas updates
+    setTimeout(() => {
+      setIsLoadingPreset(false);
+      console.log("✅ Preset track loaded successfully:", trackPreset.name);
+    }, 100);
+
     // Clear any existing simulation results
     setSimulationResults([]);
 
@@ -196,7 +209,9 @@ export default function TrackDesigner() {
 
   // Handle custom track selection from Header
   const handleCustomTrack = () => {
+    console.log("🎨 Switching to custom track mode");
     setSelectedTrackName(undefined);
+    setIsLoadingPreset(false); // Ensure we're not in loading state
     // Don't clear existing track, just remove the preset name
   };
 
