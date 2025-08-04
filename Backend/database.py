@@ -7,7 +7,7 @@ from typing import Generator
 # Database configuration - using default PostgreSQL setup on macOS
 DATABASE_URL = os.getenv(
     "DATABASE_URL", 
-    "postgresql://chackoj@localhost:5432/f1_tracks_db"  # Default user is your system username
+    "postgresql://saroshfarhan@localhost:5432/f1_tracks_db"  # Default user is your system username
 )
 
 # Create SQLAlchemy engine

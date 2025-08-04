@@ -9,6 +9,13 @@ export interface Car {
   drag_coefficient?: number;
   lift_coefficient?: number;
   effective_frontal_area?: number;
+  // Kapania Two Step Algorithm parameters
+  yaw_inertia?: number;                    // Iz (kg·m²)
+  front_axle_distance?: number;            // a (m) - distance from front axle to CG
+  rear_axle_distance?: number;             // b (m) - distance from rear axle to CG  
+  front_cornering_stiffness?: number;      // CF (kN·rad⁻¹)
+  rear_cornering_stiffness?: number;       // CR (kN·rad⁻¹)
+  max_engine_force?: number;               // N
   // Racing line model
   model?: string;
   // Customization options

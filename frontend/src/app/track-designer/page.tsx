@@ -16,11 +16,9 @@ import {
   loadSimulationResults,
   saveTrackSettings,
   loadTrackSettings,
-  saveLines,
-  loadLines,
   saveSelectedModel,
   loadSelectedModel,
-  useStorageListener
+  useStorageListener,
 } from "@/lib/dataStore";
 
 // Dynamically import CanvasDrawPaper with no SSR to avoid Paper.js server-side issues
@@ -44,8 +42,11 @@ export default function TrackDesigner() {
   const [trackWidth, setTrackWidth] = useState<number>(20);
   const [trackLength, setTrackLength] = useState<number>(0);
   const [discretizationStep, setDiscretizationStep] = useState<number>(0.1);
+  const [friction, setFriction] = useState<number>(0.8);
   const [track, setTrack] = useState<Track | null>(null);
-  const [selectedTrackName, setSelectedTrackName] = useState<string | undefined>(undefined);
+  const [selectedTrackName, setSelectedTrackName] = useState<
+    string | undefined
+  >(undefined);
 
   // Cars state
   const [cars, setCars] = useState<Car[]>([]);
@@ -54,7 +55,9 @@ export default function TrackDesigner() {
   const [selectedModel, setSelectedModel] = useState<string>("physics_based");
 
   // Simulation results state
-  const [simulationResults, setSimulationResults] = useState<SimulationResult[]>([]);
+  const [simulationResults, setSimulationResults] = useState<
+    SimulationResult[]
+  >([]);
 
   // Load initial data from localStorage
   useEffect(() => {
@@ -69,14 +72,17 @@ export default function TrackDesigner() {
     if (loadedCars.length > 0) setCars(loadedCars);
     if (loadedResults.length > 0) setSimulationResults(loadedResults);
     // REMOVED: if (loadedLines.length > 0) setLines(loadedLines); // This was causing random graphs on refresh
-    
+
     setTrackWidth(loadedSettings.trackWidth);
+    setFriction(loadedSettings.trackFriction || 0.8); // Fix: Load friction from localStorage
     setTrackLength(loadedSettings.trackLength);
     setDiscretizationStep(loadedSettings.discretizationStep);
     setSelectedTrackName(loadedSettings.selectedTrackName);
     setSelectedModel(loadedModel);
 
-    console.log('🏁 Track Designer loaded with saved data (lines loading disabled to prevent random graphs)');
+    console.log(
+      "🏁 Track Designer loaded with saved data (lines loading disabled to prevent random graphs)"
+    );
   }, []);
 
   // Save data to localStorage when state changes
@@ -95,31 +101,38 @@ export default function TrackDesigner() {
   useEffect(() => {
     saveTrackSettings({
       trackWidth,
+      trackFriction: friction, // Fix: Save friction to localStorage
       trackLength,
       discretizationStep,
-      selectedTrackName
+      selectedTrackName,
     });
-  }, [trackWidth, trackLength, discretizationStep, selectedTrackName]);
-
-  // REMOVED: Auto-save lines to localStorage (was causing random graphs on refresh)
-  // useEffect(() => {
-  //   saveLines(lines);
-  // }, [lines]);
+  }, [
+    trackWidth,
+    friction,
+    trackLength,
+    discretizationStep,
+    selectedTrackName,
+  ]);
 
   useEffect(() => {
     saveSelectedModel(selectedModel);
   }, [selectedModel]);
 
-  // Listen for storage changes from other windows
+  // Handle navigation issue: Clear canvas state when no track but cars are loaded
   useEffect(() => {
-    const cleanup = useStorageListener((key, newValue) => {
-      console.log('🔄 Storage update received:', key);
-      // We could update state here if needed, but for track designer
-      // we primarily push data, not receive it
-    });
+    if (lines.length === 0 && cars.length > 0 && simulationResults.length > 0) {
+      console.log("🔄Navigation detected: Clearing stale simulation results");
+      // Only clear simulation results if they exist and we have no track
+      setSimulationResults([]);
+    }
+  }, [lines.length, cars.length, simulationResults.length]);
 
-    return cleanup;
-  }, []);
+  // Listen for storage changes from other windows
+  useStorageListener((key) => {
+    console.log("🔄 Storage update received:", key);
+    // We could update state here if needed, but for track designer
+    // we primarily push data, not receive it
+  });
 
   // Clear all drawn lines and results
   const handleClear = () => {
@@ -128,7 +141,7 @@ export default function TrackDesigner() {
     setSimulationResults([]);
     setSelectedTrackName(undefined);
     // Also clear lines from localStorage to prevent future random graphs
-    localStorage.removeItem('f1_racing_lines');
+    localStorage.removeItem("f1_racing_lines");
   };
 
   // Handle track updates from canvas
@@ -149,7 +162,7 @@ export default function TrackDesigner() {
     const newTrack = {
       track_points: trackPoints,
       width: trackWidth,
-      friction: 0.8,
+      friction: friction,
       cars: cars,
     };
     setTrack(newTrack);
@@ -171,6 +184,7 @@ export default function TrackDesigner() {
 
     // Update track parameters
     setTrackWidth(trackPreset.width);
+    setFriction(trackPreset.friction);
     setTrackLength(trackPreset.track_length / 1000); // Convert meters to kilometers
     setSelectedTrackName(trackPreset.name);
 
@@ -191,19 +205,14 @@ export default function TrackDesigner() {
     setTrackLength(length);
   };
 
-  // Handle track width change
-  const handleTrackWidthChange = (width: number) => {
-    setTrackWidth(width);
+  // Handle friction change
+  const handleFrictionChange = (newFriction: number) => {
+    setFriction(newFriction);
     // Update track object if it exists
     if (track) {
-      const updatedTrack = { ...track, width };
+      const updatedTrack = { ...track, friction: newFriction };
       setTrack(updatedTrack);
     }
-  };
-
-  // Handle discretization step change
-  const handleDiscretizationStepChange = (step: number) => {
-    setDiscretizationStep(step);
   };
 
   // Handle car updates
@@ -216,68 +225,25 @@ export default function TrackDesigner() {
     }
   };
 
-  // Handle simulation
-  const handleSimulation = async () => {
-    if (!track || track.track_points.length === 0) {
-      alert("Please draw a track first!");
-      return;
-    }
-
-    if (cars.length === 0) {
-      alert("Please add at least one car configuration!");
-      return;
-    }
-
-    try {
-          console.log("Starting simulation with track:", track);
-    console.log("Cars:", cars);
-    console.log("🔍 Selected model in main page:", selectedModel);
-
-      const response = await fetch("http://localhost:8000/simulate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          track_points: track.track_points.map((p) => ({ x: p.x, y: p.y })),
-          width: track.width,
-          friction: track.friction,
-          cars: cars,
-          model: selectedModel,
-        }),
-      });
-
-      console.log("Simulation response:", response);
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Simulation data:", data);
-        setSimulationResults(data.optimal_lines || data);
-      } else {
-        const errorText = await response.text();
-        console.error("Simulation failed:", errorText);
-        alert(`Simulation failed: ${response.status} ${response.statusText}`);
-      }
-    } catch (error) {
-      console.error("Error during simulation:", error);
-      alert("Error during simulation. Please try again.");
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header with navigation */}
       <div className="bg-white border-b border-gray-200">
         <div className="flex items-center justify-between px-4 py-4">
           <div className="flex items-center space-x-4">
-            <Link href="/" className="text-blue-600 hover:text-blue-800 transition-colors">
+            <Link
+              href="/"
+              className="text-blue-600 hover:text-blue-800 transition-colors"
+            >
               ← Back to Home
             </Link>
             <div className="h-6 w-px bg-gray-300"></div>
-            <h1 className="text-xl font-bold text-gray-900">🏁 Track Designer</h1>
+            <h1 className="text-xl font-bold text-gray-900">
+              🏁 Track Designer
+            </h1>
           </div>
-          <Link 
-            href="/parameter-analysis" 
+          <Link
+            href="/parameter-analysis"
             className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
           >
             🔬 Open Parameter Analysis
@@ -286,7 +252,7 @@ export default function TrackDesigner() {
       </div>
 
       {/* Header with integrated track selection */}
-      <Header 
+      <Header
         selectedTrackName={selectedTrackName}
         onTrackSelect={handleTrackSelect}
         onCustomTrack={handleCustomTrack}
@@ -317,16 +283,14 @@ export default function TrackDesigner() {
           <div className="w-80 bg-white border-l border-gray-200 p-4 space-y-4 overflow-y-auto">
             {/* Track Controls */}
             <TrackControl
-              trackWidth={trackWidth}
-              onTrackWidthChange={handleTrackWidthChange}
               trackLength={trackLength}
-              discretizationStep={discretizationStep}
-              onDiscretizationStepChange={handleDiscretizationStepChange}
+              friction={friction}
+              onFrictionChange={handleFrictionChange}
             />
 
             {/* Car Controls */}
-            <CarControl 
-              cars={cars} 
+            <CarControl
+              cars={cars}
               setCars={handleCarsUpdate}
               track={track}
               selectedModel={selectedModel}
@@ -338,7 +302,10 @@ export default function TrackDesigner() {
               <div className="p-4 border border-gray-300 rounded">
                 <h3 className="font-semibold text-gray-800 mb-3">Results</h3>
                 {simulationResults.map((result, index) => (
-                  <div key={index} className="mb-2 p-2 bg-gray-50 rounded text-sm">
+                  <div
+                    key={index}
+                    className="mb-2 p-2 bg-gray-50 rounded text-sm"
+                  >
                     <div className="font-medium">Car {index + 1}</div>
                     <div>Lap Time: {result.lap_time.toFixed(3)}s</div>
                     <div>Points: {result.coordinates.length}</div>
