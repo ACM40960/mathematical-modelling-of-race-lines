@@ -1,11 +1,14 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 import numpy as np
-from simulation.optimizer_new import optimize_racing_line, RacingLineModel, get_available_models
-from models.track import Track, Car, TrackInput
-from models.response import SimulationResponse
+from sqlalchemy.orm import Session
+from simulation.optimizer import optimize_racing_line, RacingLineModel, get_available_models
+from schemas.track import Track, Car, TrackInput, PredefinedTrack, TrackPreset, TrackListItem
+from schemas.response import SimulationResponse
+from database import get_db, create_tables
+from data.track_data import get_sample_f1_tracks
 import json
 
 # Initialize FastAPI app
@@ -23,6 +26,35 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database tables and populate with sample data"""
+    try:
+        create_tables()
+        # Database tables created
+        
+        # Get existing track names to avoid duplicates
+        db = next(get_db())
+        existing_track_names = {track.name for track in db.query(PredefinedTrack).all()}
+        
+        # Get sample tracks and add any that don't exist
+        sample_tracks = get_sample_f1_tracks()
+        new_tracks_added = 0
+        
+        for track_data in sample_tracks:
+            if track_data["name"] not in existing_track_names:
+                db_track = PredefinedTrack(**track_data)
+                db.add(db_track)
+                new_tracks_added += 1
+        
+        if new_tracks_added > 0:
+            db.commit()
+            print(f"✅ Added {new_tracks_added} new tracks to database")
+        
+        db.close()
+    except Exception as e:
+        print(f"Database initialization error: {e}")
 
 class SimulationRequest(BaseModel):
     """Request model for simulation with optional model parameter"""
@@ -44,18 +76,13 @@ async def simulate_racing_line(request: SimulationRequest):
     """
     Calculate optimal racing line for given track and car parameters
     """
-    print("\n=== SIMULATE ENDPOINT HIT ===")
-    print("Received request with:")
-    print(f"Number of track points: {len(request.track_points)}")
-    print(f"Track width: {request.width}")
-    print(f"Track friction: {request.friction}")
-    print(f"Number of cars: {len(request.cars)}")
-    print(f"Model: {request.model}")
-    print("================================\n")
+    # Log basic simulation parameters
+    print(f"🏎️ Starting simulation: {len(request.cars)} cars, {len(request.track_points)} track points, model: {request.model}")
+
     
     try:
         # Convert request to Track object
-        from models.track import TrackPoint
+        from schemas.track import TrackPoint
         track_points = [TrackPoint(x=p['x'], y=p['y']) for p in request.track_points]
         cars = [Car(**car_data) for car_data in request.cars]
         
@@ -66,25 +93,25 @@ async def simulate_racing_line(request: SimulationRequest):
             cars=cars
         )
         
+        # Track object created successfully
+        
         # Validate and set the model
         try:
             model = RacingLineModel(request.model)
         except ValueError:
-            print(f"Warning: Unknown model '{request.model}', using physics_based")
+            print(f"⚠️ Warning: Unknown model '{request.model}', using physics_based")
             model = RacingLineModel.PHYSICS_BASED
         
         # Run simulation with the specified model
         optimal_lines = optimize_racing_line(track, model)
         
-        print("\n=== SIMULATION COMPLETED ===")
-        print(f"Generated {len(optimal_lines)} optimal lines using {model.value} model")
-        print("================================\n")
+        # Log simulation completion
+        lap_times = [line.get('lap_time', 0) for line in optimal_lines]
+        print(f"✅ Simulation completed: {len(optimal_lines)} cars, fastest lap: {min(lap_times):.2f}s")
         
         return {"optimal_lines": optimal_lines}
     except Exception as e:
-        print("\n=== SIMULATION ERROR ===")
-        print(f"Error: {str(e)}")
-        print("================================\n")
+        print(f"❌ Simulation error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/models")
@@ -96,8 +123,7 @@ async def get_models():
         models = get_available_models()
         return {"models": models}
     except Exception as e:
-        print(f"Error getting models: {e}")
-        # Fallback models
+        # Fallback models if error occurs
         return {
             "models": [
                 {
@@ -146,11 +172,7 @@ async def process_track(track_data: TrackInput):
     """
     Receives and processes track data from the frontend
     """
-    # Print received data
-    print("\nReceived Track Data:")
-    print(f"Track Width: {track_data.trackWidth} meters")
-    print(f"Track Length: {track_data.trackLength} kilometers")
-    print(f"Discretization Step: {track_data.discretizationStep}")
+    # Track data received
     
     return {
         "status": "success",
@@ -161,3 +183,78 @@ async def process_track(track_data: TrackInput):
             "discretizationStep": track_data.discretizationStep
         }
     } 
+
+@app.get("/tracks", response_model=List[TrackListItem])
+async def get_tracks_list(
+    circuit_type: Optional[str] = None, 
+    country: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Get list of available predefined tracks with optional filtering
+    """
+    try:
+        query = db.query(PredefinedTrack).filter(PredefinedTrack.is_active == True)
+        
+        if circuit_type:
+            query = query.filter(PredefinedTrack.circuit_type == circuit_type)
+        if country:
+            query = query.filter(PredefinedTrack.country.ilike(f"%{country}%"))
+            
+        tracks = query.all()
+        
+        return [
+            TrackListItem(
+                id=track.id,
+                name=track.name,
+                country=track.country,
+                circuit_type=track.circuit_type,
+                track_length=track.track_length,
+                difficulty_rating=track.difficulty_rating,
+                preview_image_url=track.preview_image_url,
+                number_of_turns=track.number_of_turns
+            )
+            for track in tracks
+        ]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/tracks/{track_id}", response_model=TrackPreset)
+async def get_track_by_id(track_id: int, db: Session = Depends(get_db)):
+    """
+    Get full track data by ID for simulation
+    """
+    try:
+        track = db.query(PredefinedTrack).filter(
+            PredefinedTrack.id == track_id,
+            PredefinedTrack.is_active == True
+        ).first()
+        
+        if not track:
+            raise HTTPException(status_code=404, detail="Track not found")
+        
+        # Convert track_points from JSON to TrackPoint objects
+        from schemas.track import TrackPoint
+        track_points = [TrackPoint(**point) for point in track.track_points]
+        
+        return TrackPreset(
+            id=track.id,
+            name=track.name,
+            country=track.country,
+            circuit_type=track.circuit_type,
+            track_points=track_points,
+            width=track.width,
+            friction=track.friction,
+            track_length=track.track_length,
+            description=track.description,
+            preview_image_url=track.preview_image_url,
+            difficulty_rating=track.difficulty_rating,
+            elevation_change=track.elevation_change,
+            number_of_turns=track.number_of_turns,
+            fastest_lap_time=track.fastest_lap_time,
+            year_built=track.year_built
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

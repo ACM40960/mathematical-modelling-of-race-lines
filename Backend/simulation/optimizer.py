@@ -5,13 +5,14 @@ import numpy as np
 from scipy.optimize import minimize
 from scipy.interpolate import splprep, splev
 from typing import List, Tuple, Dict
-from models.track import Car
+from schemas.track import Car
 from scipy.ndimage import gaussian_filter1d
 from enum import Enum
 
 # Import the new model classes
-from .models.physics_model import PhysicsBasedModel
-from .models.basic_model import BasicModel
+from .algorithms.physics_model import PhysicsBasedModel
+from .algorithms.basic_model import BasicModel
+from .aerodynamics import aerodynamic_model, get_speed_dependent_coefficients
 
 class RacingLineModel(str, Enum):
     """Available racing line calculation models"""
@@ -97,22 +98,25 @@ def compute_curvature(points: np.ndarray) -> np.ndarray:
 
 def calculate_max_entry_speed(curvature: float, friction: float, car: Car) -> float:
     """
-    Calculate the maximum entry speed for a corner based on vehicle dynamics
+    Calculate the maximum entry speed for a corner based on REAL vehicle dynamics
+    Now properly accounts for car mass, downforce, and acceleration capabilities!
     """
     # Handle invalid curvature values
     if not np.isfinite(curvature) or abs(curvature) < 1e-10:
-        return 80.0  # Return a reasonable max speed for straights
+        # Straight line - limited by car's top speed capability
+        return min(80.0, np.sqrt(car.max_acceleration * 100))  # Rough top speed estimate
         
     g = 9.81  # gravitational acceleration
     rho = 1.225  # air density (kg/m³)
     
     # Use car's actual parameters
+    mass = car.mass
     Cl = getattr(car, 'lift_coefficient', 3.0)
     Cd = getattr(car, 'drag_coefficient', 1.0)
     A = car.effective_frontal_area
     
     # Ensure all values are finite
-    if not all(np.isfinite([Cl, Cd, A, car.mass])):
+    if not all(np.isfinite([Cl, Cd, A, mass])):
         return 10.0  # Return safe fallback speed
     
     # Convert steering angle to radians
@@ -127,14 +131,97 @@ def calculate_max_entry_speed(curvature: float, friction: float, car: Car) -> fl
     
     # Check if the corner is too tight for the car's steering capability
     if current_turn_radius < min_turn_radius:
-        return min(15.0, np.sqrt(friction * g * current_turn_radius))
+        limited_speed = min(15.0, np.sqrt(friction * g * current_turn_radius))
+        return limited_speed
     
-    # Simple speed calculation based on friction and curvature
-    max_speed = np.sqrt(friction * g / abs(curvature)) if abs(curvature) > 1e-10 else 80.0
+    # ADVANCED PHYSICS: Speed-dependent aerodynamics + drag integration
+    # Start with estimated speed for iterative aerodynamic calculation
+    v_estimate = 30.0 if abs(curvature) > 1e-10 else 60.0  # Different initial guess for corners vs straights
     
-    # Add safety factor and ensure result is finite
-    result = max(0.1, 0.85 * max_speed)
-    return result if np.isfinite(result) else 10.0
+    for iteration in range(5):  # More iterations for speed-dependent convergence
+        # Get speed-dependent aerodynamic coefficients from research paper
+        aero_coeffs = get_speed_dependent_coefficients(v_estimate)
+        
+        # Apply car's base coefficients as scaling factors
+        effective_drag = aero_coeffs.drag_coefficient * (Cd / 1.0)  # Scale from baseline
+        effective_lift = aero_coeffs.lift_coefficient * (Cl / 3.0)  # Scale from baseline
+        
+        # Calculate aerodynamic forces with speed-dependent coefficients
+        drag_force, downforce = aerodynamic_model.calculate_aerodynamic_forces(
+            v_estimate, A, Cd, Cl
+        )
+        
+        # Iteration debug removed
+        
+        if abs(curvature) > 1e-10:  # Cornering - limited by lateral grip
+            # Total normal force = Weight + Downforce  
+            total_normal_force = mass * g + downforce
+            
+            # Maximum lateral force from friction: F_lat = μ * N
+            max_lateral_force = friction * total_normal_force
+            
+            # Centripetal force equation: F = m * v² / r = m * v² * κ
+            v_max_squared = max_lateral_force / (mass * abs(curvature))
+            
+            if v_max_squared > 0:
+                v_new = np.sqrt(v_max_squared)
+            else:
+                v_new = 10.0
+                
+        else:  # Straight section - limited by drag vs driving force
+            # Maximum driving force approximation (based on acceleration capability)
+            max_drive_force = mass * car.max_acceleration * 0.8  # 80% of max acceleration
+            
+            # On straights, speed is limited by drag force balance
+            # F_drive = F_drag at top speed
+            if drag_force > 0:
+                # If drag force exceeds driving capability, reduce speed
+                if drag_force > max_drive_force:
+                    # Solve for speed where F_drag = F_drive
+                    v_new = aerodynamic_model.calculate_drag_limited_speed(
+                        max_drive_force, A, Cd
+                    )
+                else:
+                    # Can maintain or increase speed
+                    v_new = min(v_estimate * 1.1, 100.0)  # Gradual increase up to reasonable limit
+            else:
+                v_new = 80.0  # Fallback for straight sections
+        
+        # Check for convergence
+        if abs(v_new - v_estimate) < 0.3:  # Converged within 0.3 m/s
+            break
+            
+        # Damped update to prevent oscillation
+        v_estimate = 0.6 * v_estimate + 0.4 * v_new
+    
+    # Mass-dependent speed scaling
+    # Heavier cars are penalized due to:
+    # 1. More inertia in corners
+    # 2. Higher tire loading
+    # 3. Reduced acceleration capability
+    reference_mass = 750.0  # F1 car reference mass
+    mass_penalty = np.sqrt(reference_mass / mass)  # Heavier cars get < 1.0 multiplier
+    
+    # Acceleration-dependent speed scaling
+    # Cars with better acceleration can carry more speed (better braking too)
+    reference_acceleration = 10.0  # m/s² reference
+    accel_boost = np.sqrt(car.max_acceleration / reference_acceleration)
+    
+    # Final speed calculation with physics factors
+    physics_speed = v_estimate * mass_penalty * accel_boost
+    
+    # Safety factor and bounds
+    final_speed = max(5.0, min(100.0, 0.85 * physics_speed))
+    
+    # Get final aerodynamic data for output
+    final_aero = get_speed_dependent_coefficients(v_estimate)
+    final_drag, final_downforce = aerodynamic_model.calculate_aerodynamic_forces(
+        v_estimate, A, Cd, Cl
+    )
+    
+    # Speed calculation complete
+    
+    return final_speed if np.isfinite(final_speed) else 10.0
 
 def calculate_speed_profile(
     racing_line: np.ndarray,
@@ -175,6 +262,8 @@ def calculate_speed_profile(
         if speeds[i] > 0:
             lap_time += segment_lengths[i] / speeds[i]
     
+    # Speed profile calculation complete
+    
     return speeds, lap_time
 
 def optimize_racing_line(track, model: RacingLineModel = RacingLineModel.PHYSICS_BASED) -> List[Dict]:
@@ -210,8 +299,34 @@ def optimize_racing_line(track, model: RacingLineModel = RacingLineModel.PHYSICS
     # Get the appropriate model
     racing_model = MODELS.get(model, MODELS[RacingLineModel.PHYSICS_BASED])
     
-    # Calculate base racing line using the selected model
-    base_racing_line = racing_model.calculate_racing_line(resampled_points, curvature, track_width)
+    # Prepare car parameters for physics-based calculations
+    car_params = None
+    friction = 1.0  # Default friction
+    
+    # Prepare car parameters
+    if track.cars and len(track.cars) > 0:
+        # Use the first car's parameters for racing line calculation
+        car = track.cars[0]
+        car_params = {
+            'mass': car.mass,
+            'length': car.length,
+            'width': car.width,
+            'max_steering_angle': car.max_steering_angle,
+            'max_acceleration': car.max_acceleration,
+            'drag_coefficient': car.drag_coefficient,
+            'lift_coefficient': car.lift_coefficient
+        }
+    else:
+        car_params = None
+    
+    # Use track friction
+    friction = track.friction
+    
+    base_racing_line = racing_model.calculate_racing_line(
+        resampled_points, curvature, track_width, car_params, friction
+    )
+    
+    # Racing line calculated
     
     # Ensure the racing line is also properly closed and starts at the correct position
     if not np.allclose(base_racing_line[0], base_racing_line[-1], atol=1e-3):
@@ -266,7 +381,7 @@ def optimize_racing_line(track, model: RacingLineModel = RacingLineModel.PHYSICS
             })
         except Exception as e:
             # If optimization fails for a car, provide a safe fallback
-            print(f"Warning: Optimization failed for car {car.id} with model {model.value}: {str(e)}")
+            print(f"⚠️ Optimization failed for car {car.id}: {str(e)}")
             optimal_lines.append({
                 "car_id": car.id,
                 "coordinates": resampled_points.tolist(),  # Use resampled track as fallback

@@ -91,6 +91,16 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
   const [isDrawingTrack, setIsDrawingTrack] = useState(false);
   // Add internal state to track if we have a track (independent of parent's lines state)
   const [hasTrack, setHasTrack] = useState(false);
+  
+  // Track the source of the current track to prevent redundant operations
+  const lastTrackSource = useRef<'none' | 'custom' | 'preset'>('none');
+  const lastTrackHash = useRef<string>('');
+  
+  // Zoom state management
+  const [zoomLevel, setZoomLevel] = useState(1.8); // Start with current default
+  const minZoom = 0.1;
+  const maxZoom = 10.0;
+  const zoomStep = 0.2;
 
   useEffect(() => {
     let mounted = true;
@@ -121,7 +131,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
         paper.setup(canvas);
 
         // Set zoom and optionally center
-        paper.view.zoom = 1.8;
+        paper.view.zoom = zoomLevel;
         paper.view.center = paper.view.bounds.center;
 
         if (mounted) {
@@ -332,7 +342,8 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
   const drawTrackWithBoundaries = (
     points: Point[],
     isPreview = false,
-    clearExisting = false
+    clearExisting = false,
+    isCircuit = false
   ) => {
     console.log(
       `[drawTrackWithBoundaries] Drawing track with ${points.length} points, isPreview: ${isPreview}, clearExisting: ${clearExisting}`
@@ -387,20 +398,20 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
         )
     );
 
-    // Draw center line with bright, visible colors
+    // Draw center line (same color as custom tracks)
     const centerPath = new paper.Path({
       segments: paperPoints,
-      strokeColor: new paper.Color("#ff0000"), // Bright red center line
+      strokeColor: new paper.Color("#666666"), // Gray center line (matches custom tracks)
       strokeWidth: 3,
       strokeCap: "round",
       strokeJoin: "round",
       data: { type: "track", subtype: "center" },
     });
 
-    // Draw boundaries with bright, visible colors
+    // Draw boundaries (same color as custom tracks)
     const leftPath = new paper.Path({
       segments: leftPoints,
-      strokeColor: new paper.Color("#0000ff"), // Bright blue left boundary
+      strokeColor: new paper.Color("#333333"), // Dark gray left boundary (matches custom tracks)
       strokeWidth: 2,
       strokeCap: "round",
       strokeJoin: "round",
@@ -409,12 +420,19 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
 
     const rightPath = new paper.Path({
       segments: rightPoints,
-      strokeColor: new paper.Color("#00ff00"), // Bright green right boundary
+      strokeColor: new paper.Color("#333333"), // Dark gray right boundary (matches custom tracks)
       strokeWidth: 2,
       strokeCap: "round",
       strokeJoin: "round",
       data: { type: "track", subtype: "right" },
     });
+
+    // Close paths for circuit tracks (F1 circuits)
+    if (isCircuit) {
+      centerPath.closePath();
+      leftPath.closePath();
+      rightPath.closePath();
+    }
 
     if (!isPreview) {
       centerPath.smooth();
@@ -422,49 +440,75 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       rightPath.smooth();
     }
 
-    // Draw start point indicator (bright green circle with 'S')
-    const startPoint = points[0];
-    const startCircle = new paper.Path.Circle(
-      new paper.Point(startPoint.x, startPoint.y),
-      18
-    );
-    startCircle.fillColor = new paper.Color("#00ff00"); // Bright green
-    startCircle.strokeColor = new paper.Color("#000000"); // Black border
-    startCircle.strokeWidth = 3;
-    startCircle.data = { type: "start_finish", subtype: "start" };
+    // Draw start/finish indicators (subtle colors to match track theme)
+    if (isCircuit) {
+      // For circuits, show single start/finish line
+      const startPoint = points[0];
+      const startCircle = new paper.Path.Circle(
+        new paper.Point(startPoint.x, startPoint.y),
+        18
+      );
+      startCircle.fillColor = new paper.Color("#888888"); // Subtle gray for start/finish
+      startCircle.strokeColor = new paper.Color("#333333"); // Dark gray border
+      startCircle.strokeWidth = 2;
+      startCircle.data = { type: "start_finish", subtype: "circuit" };
 
-    // Add 'S' text
-    const startText = new paper.PointText({
-      point: new paper.Point(startPoint.x - 6, startPoint.y + 6),
-      content: "S",
-      fillColor: "#000000", // Black text for contrast
-      fontFamily: "Arial",
-      fontWeight: "bold",
-      fontSize: 16,
-      data: { type: "start_finish", subtype: "start_text" },
-    });
+      // Add 'S/F' text for start/finish line
+      const startText = new paper.PointText({
+        point: new paper.Point(startPoint.x - 10, startPoint.y + 4),
+        content: "S/F",
+        fillColor: "#ffffff", // White text for contrast
+        fontFamily: "Arial",
+        fontWeight: "bold",
+        fontSize: 11,
+        data: { type: "start_finish", subtype: "circuit_text" },
+      });
+    } else {
+      // For open tracks, show separate start and finish points
+      // Draw start point indicator
+      const startPoint = points[0];
+      const startCircle = new paper.Path.Circle(
+        new paper.Point(startPoint.x, startPoint.y),
+        16
+      );
+      startCircle.fillColor = new paper.Color("#777777"); // Subtle gray
+      startCircle.strokeColor = new paper.Color("#333333"); // Dark gray border
+      startCircle.strokeWidth = 2;
+      startCircle.data = { type: "start_finish", subtype: "start" };
 
-    // Draw end point indicator (bright red circle with 'F' for Finish)
-    const endPoint = points[points.length - 1];
-    const endCircle = new paper.Path.Circle(
-      new paper.Point(endPoint.x, endPoint.y),
-      18
-    );
-    endCircle.fillColor = new paper.Color("#ff0000"); // Bright red
-    endCircle.strokeColor = new paper.Color("#000000"); // Black border
-    endCircle.strokeWidth = 3;
-    endCircle.data = { type: "start_finish", subtype: "finish" };
+      // Add 'S' text
+      const startText = new paper.PointText({
+        point: new paper.Point(startPoint.x - 5, startPoint.y + 5),
+        content: "S",
+        fillColor: "#ffffff", // White text for contrast
+        fontFamily: "Arial",
+        fontWeight: "bold",
+        fontSize: 14,
+        data: { type: "start_finish", subtype: "start_text" },
+      });
 
-    // Add 'F' text
-    const endText = new paper.PointText({
-      point: new paper.Point(endPoint.x - 6, endPoint.y + 6),
-      content: "F",
-      fillColor: "#000000", // Black text for contrast
-      fontFamily: "Arial",
-      fontWeight: "bold",
-      fontSize: 16,
-      data: { type: "start_finish", subtype: "finish_text" },
-    });
+      // Draw end point indicator
+      const endPoint = points[points.length - 1];
+      const endCircle = new paper.Path.Circle(
+        new paper.Point(endPoint.x, endPoint.y),
+        16
+      );
+      endCircle.fillColor = new paper.Color("#555555"); // Darker gray for finish
+      endCircle.strokeColor = new paper.Color("#333333"); // Dark gray border
+      endCircle.strokeWidth = 2;
+      endCircle.data = { type: "start_finish", subtype: "finish" };
+
+      // Add 'F' text
+      const endText = new paper.PointText({
+        point: new paper.Point(endPoint.x - 5, endPoint.y + 5),
+        content: "F",
+        fillColor: "#ffffff", // White text for contrast
+        fontFamily: "Arial",
+        fontWeight: "bold",
+        fontSize: 14,
+        data: { type: "start_finish", subtype: "finish_text" },
+      });
+    }
 
     // Draw direction arrow near the start
     if (points.length > 1) {
@@ -585,19 +629,33 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     // Clear any existing track if we have one
     if (hasTrack) {
       console.log("[handleMouseDown] Clearing existing track");
-      const existingTrackElements = paper.project.activeLayer.children.filter(
-        (child) =>
-          child.data?.type === "track_permanent" ||
-          child.data?.type === "track" ||
-          child.data?.type === "completion_preview" ||
-          child.data?.subtype === "start_finish"
-      );
-      existingTrackElements.forEach((element) => element.remove());
-      console.log(
-        "[handleMouseDown] Removed",
-        existingTrackElements.length,
-        "existing track elements"
-      );
+      try {
+        // Use more comprehensive clearing approach
+        if (paper.project.activeLayer) {
+          const existingTrackElements = paper.project.activeLayer.children.filter(
+            (child) =>
+              child.data?.type === "track_permanent" ||
+              child.data?.type === "track" ||
+              child.data?.type === "completion_preview" ||
+              child.data?.subtype === "start_finish" ||
+              child.data?.subtype === "center" ||
+              child.data?.subtype === "left" ||
+              child.data?.subtype === "right"
+          );
+          existingTrackElements.forEach((element) => element.remove());
+          console.log(
+            "[handleMouseDown] Removed",
+            existingTrackElements.length,
+            "existing track elements"
+          );
+        }
+      } catch (error) {
+        console.error("[handleMouseDown] Error clearing existing track:", error);
+        // Fallback: clear all children
+        if (paper.project.activeLayer) {
+          paper.project.activeLayer.removeChildren();
+        }
+      }
       setHasTrack(false);
     }
 
@@ -1051,11 +1109,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     outerPath.current = null;
     // Keep currentPath.current reference since we're not removing it
 
-    // DISABLE setLines - it's causing canvas clearing
-    // setLines([points]);
-    console.log("[handleMouseUp] DISABLED setLines to prevent canvas clearing");
-
-    // Store track points internally for car positioning
+    // Store track points internally for car positioning FIRST
     setInternalTrackPoints(points);
     console.log(
       "[handleMouseUp] Stored",
@@ -1063,13 +1117,28 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       "track points internally"
     );
 
-    // Clear the drawing flag immediately since we're not updating state
-    setIsDrawingTrack(false);
     // Set hasTrack flag to indicate we now have a track
     setHasTrack(true);
-    console.log(
-      "[handleMouseUp] Cleared drawing flag immediately and set hasTrack=true"
-    );
+    
+    // Update tracking refs for custom track
+    const customHash = createTrackHash(points);
+    lastTrackHash.current = customHash;
+    lastTrackSource.current = 'custom';
+    console.log("[handleMouseUp] Set hasTrack=true and marked as custom track");
+
+    // Clear the drawing flag immediately since we're not updating state
+    setIsDrawingTrack(false);
+
+    // Now update parent state - the useEffect will recognize this as existing track
+    console.log("[handleMouseUp] Updating parent with custom track points");
+    setLines([points]);
+    
+    // Notify parent component about track update
+    if (onTrackUpdate) {
+      const length = calculateTrackLength(points);
+      const curvature = calculateCurvature(points);
+      onTrackUpdate(points, curvature, length);
+    }
 
     console.log("[handleMouseUp] AFTER setLines:", {
       totalChildren: paper.project.activeLayer.children.length,
@@ -1228,21 +1297,28 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     }
 
     results.optimal_lines.forEach((result: any) => {
-      const { coordinates } = result;
+      const { coordinates, car_id } = result;
       if (coordinates && coordinates.length > 1) {
+        // Find the car to get its accent color
+        const car = cars.find(c => c.id === car_id);
+        const racingLineColor = car?.accent_color || "#000000"; // Fallback to black if car not found
+        
         const racingLinePath = new paper.Path({
           segments: coordinates.map(
             (coord: number[]) => new paper.Point(coord[0], coord[1])
           ),
-          strokeColor: new paper.Color("#000000"), // Black racing line
-          strokeWidth: 2,
+          strokeColor: new paper.Color(racingLineColor), // Use car's accent color
+          strokeWidth: 3, // Slightly thicker for better visibility
           strokeCap: "round",
           strokeJoin: "round",
-          data: { type: "racing_line" },
+          opacity: 0.8, // Slightly transparent so track is still visible
+          data: { type: "racing_line", car_id: car_id },
         });
         racingLinePath.smooth();
         // Send racing line to back so it appears behind the track
         racingLinePath.sendToBack();
+        
+        console.log(`[Racing Line] Drew ${car?.team_name || car_id} racing line in ${racingLineColor}`);
       }
     });
 
@@ -1250,7 +1326,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     originalLayer.activate();
 
     let startTime: number | null = null;
-    const duration = 15000; // 15 seconds per lap for smoother viewing
+    const duration = 18000; // 18 seconds per lap for smoother viewing
     let isRunning = true;
 
     const animate = (timestamp: number) => {
@@ -1259,7 +1335,11 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       if (!startTime) startTime = timestamp;
       const elapsed = timestamp - startTime;
       // Continuous loop - no visible restart
-      const progress = (elapsed % duration) / duration;
+      let progress = (elapsed % duration) / duration;
+      
+      // Smooth progress transition to eliminate speed-ups near finish
+      // Apply easing to make the animation more consistent
+      progress = progress; // Linear for now, could add easing functions here
 
       // Update car positions for smooth interpolation
       const newPositions: Record<string, CarPosition> = {};
@@ -1268,33 +1348,55 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
         const { car_id, coordinates, speeds } = result;
         const totalPoints = coordinates.length;
 
-        // Make it truly continuous by wrapping around
-        const floatIndex = progress * totalPoints;
-        const currentIndex = Math.floor(floatIndex) % totalPoints;
-        const nextIndex = (currentIndex + 1) % totalPoints;
-        const currentPos = coordinates[currentIndex];
-        const nextPos = coordinates[nextIndex];
-        const currentSpeed = speeds?.[currentIndex] || 0;
+        if (totalPoints < 2) return; // Need at least 2 points
+
+        // More robust progress calculation to avoid speed-ups near finish
+        const adjustedProgress = progress * (totalPoints - 1); // Scale to avoid exact wraparound
+        const currentIndex = Math.floor(adjustedProgress);
+        const nextIndex = currentIndex + 1;
+        
+        // Handle wraparound more carefully
+        const safeCurrentIndex = currentIndex % totalPoints;
+        const safeNextIndex = nextIndex >= totalPoints ? 0 : nextIndex;
+        
+        const currentPos = coordinates[safeCurrentIndex];
+        const nextPos = coordinates[safeNextIndex];
+        const currentSpeed = speeds?.[safeCurrentIndex] || 0;
+        const nextSpeed = speeds?.[safeNextIndex] || currentSpeed;
 
         if (currentPos && nextPos) {
-          // Smooth interpolation between points with wrapping
-          const localProgress = floatIndex - Math.floor(floatIndex);
-          const x =
-            currentPos[0] + (nextPos[0] - currentPos[0]) * localProgress;
-          const y =
-            currentPos[1] + (nextPos[1] - currentPos[1]) * localProgress;
+          // Smooth interpolation between points
+          const localProgress = adjustedProgress - currentIndex;
+          
+          // Handle potential wraparound discontinuity
+          let deltaX = nextPos[0] - currentPos[0];
+          let deltaY = nextPos[1] - currentPos[1];
+          
+          // If this is a wraparound (last point to first point), check for large jumps
+          if (safeNextIndex === 0 && safeCurrentIndex === totalPoints - 1) {
+            // Ensure smooth transition from last to first point
+            const firstPos = coordinates[0];
+            const lastPos = coordinates[totalPoints - 1];
+            
+            // Use actual first point position for smooth transition
+            deltaX = firstPos[0] - lastPos[0];
+            deltaY = firstPos[1] - lastPos[1];
+          }
+          
+          const x = currentPos[0] + deltaX * localProgress;
+          const y = currentPos[1] + deltaY * localProgress;
+
+          // Smooth speed interpolation
+          const interpolatedSpeed = currentSpeed + (nextSpeed - currentSpeed) * localProgress;
 
           // Calculate car angle based on movement direction
-          const angle = Math.atan2(
-            nextPos[1] - currentPos[1],
-            nextPos[0] - currentPos[0]
-          );
+          const angle = Math.atan2(deltaY, deltaX);
 
           newPositions[car_id] = {
             x,
             y,
             angle,
-            speed: currentSpeed,
+            speed: interpolatedSpeed,
           };
         }
       });
@@ -1359,7 +1461,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
 
   // Handle simulation and animation
   const handleAnimateClick = useCallback(async () => {
-    console.log("Play button clicked");
+    console.log("Simulation/Animation button clicked");
 
     // If we're currently animating, stop it
     if (isAnimating) {
@@ -1835,61 +1937,72 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
   const handleClearAll = useCallback(() => {
     console.log("[handleClearAll] Clearing everything...");
 
-    // Clear parent component state
-    handleClear();
-
-    // Clear Paper.js canvas
-    if (
-      paper &&
-      paper.project &&
-      paper.project.layers &&
-      paper.project.layers[0]
-    ) {
-      // Clear all track elements from the main layer
-      const mainLayer = paper.project.layers[0];
-      if (mainLayer) {
-        const elementsToRemove = mainLayer.children.filter(
-          (child) =>
-            child.data?.type === "track_permanent" ||
-            child.data?.type === "track" ||
-            child.data?.type === "completion_preview" ||
-            child.data?.type === "racing_line" ||
-            child.data?.subtype === "start_finish" ||
-            child.data?.subtype === "center_guide" ||
-            child.data?.subtype === "left_boundary" ||
-            child.data?.subtype === "right_boundary"
-        );
-        elementsToRemove.forEach((element) => element.remove());
-        console.log(
-          "[handleClearAll] Removed",
-          elementsToRemove.length,
-          "track elements"
-        );
-      }
-
-      // Clear the car layer
-      const carLayer = paper.project.layers.find(
-        (layer) => layer.data?.type === "car_layer"
-      );
-      if (carLayer) {
-        carLayer.removeChildren();
-        console.log("[handleClearAll] Cleared car layer");
-      }
-
-      // Force canvas update
-      paper.view?.requestUpdate();
-    }
-
-    // Clear all component state
+    // Clear all component state first to prevent conflicts
     setIsAnimating(false);
     setHasTrack(false);
     setIsDrawingTrack(false);
     setInternalTrackPoints([]); // Clear internal track points
+    
+    // Reset tracking state
+    lastTrackSource.current = 'none';
+    lastTrackHash.current = '';
 
-    // Clear animation
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
+    // Clear parent component state
+    handleClear();
+
+    // Clear Paper.js canvas - use comprehensive approach
+    if (paper && paper.project) {
+      try {
+        // Stop any running animations first
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+        }
+        
+        // Method 1: Clear all layers completely (most reliable)
+        paper.project.clear();
+        
+        // Method 2: Recreate the default layer structure
+        if (paper.project.layers.length === 0) {
+          new paper.Layer(); // Create default layer
+        }
+        
+        // Method 3: Ensure car layer is properly removed/recreated
+        const existingCarLayer = paper.project.layers.find(
+          (layer) => layer.data?.type === "car_layer"
+        );
+        if (existingCarLayer) {
+          existingCarLayer.remove();
+        }
+        
+        console.log("[handleClearAll] Paper.js canvas cleared completely");
+        
+        // Force canvas update
+        paper.view?.requestUpdate();
+        
+      } catch (error) {
+        console.error("[handleClearAll] Error clearing Paper.js canvas:", error);
+        
+        // Fallback: Try to clear each layer individually
+        try {
+          if (paper.project.layers) {
+            paper.project.layers.forEach(layer => {
+              if (layer && layer.removeChildren) {
+                layer.removeChildren();
+              }
+            });
+          }
+        } catch (fallbackError) {
+          console.error("[handleClearAll] Fallback clear failed:", fallbackError);
+        }
+      }
     }
+    
+    // Clear simulation results via parent callback
+    if (onSimulationResults) {
+      onSimulationResults([]);
+    }
+
+    // Clear animation references
     animationStartTime.current = null;
     animationProgress.current = 0;
 
@@ -1901,8 +2014,346 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     innerPath.current = null;
     outerPath.current = null;
 
-    console.log("[handleClearAll] Clear complete");
-  }, [handleClear]);
+    // Stop any running animations
+    if (stopAnimationRef.current) {
+      stopAnimationRef.current();
+      stopAnimationRef.current = null;
+    }
+
+    // Reset zoom to default
+    const defaultZoom = 1.8;
+    setZoomLevel(defaultZoom);
+    if (paper && paper.view) {
+      paper.view.zoom = defaultZoom;
+      paper.view.center = paper.view.bounds.center;
+    }
+
+    console.log("[handleClearAll] Clear complete - all state reset");
+  }, [handleClear, onSimulationResults]);
+
+  // Zoom functionality
+  const handleZoomIn = useCallback(() => {
+    if (!paper || !paper.view) return;
+    
+    const newZoom = Math.min(zoomLevel + zoomStep, maxZoom);
+    setZoomLevel(newZoom);
+    paper.view.zoom = newZoom;
+    paper.view.requestUpdate();
+    console.log(`[Zoom] Zoomed in to ${newZoom.toFixed(1)}x`);
+  }, [zoomLevel, zoomStep, maxZoom]);
+
+  const handleZoomOut = useCallback(() => {
+    if (!paper || !paper.view) return;
+    
+    const newZoom = Math.max(zoomLevel - zoomStep, minZoom);
+    setZoomLevel(newZoom);
+    paper.view.zoom = newZoom;
+    paper.view.requestUpdate();
+    console.log(`[Zoom] Zoomed out to ${newZoom.toFixed(1)}x`);
+  }, [zoomLevel, zoomStep, minZoom]);
+
+  const handleZoomReset = useCallback(() => {
+    if (!paper || !paper.view) return;
+    
+    const defaultZoom = 1.8;
+    setZoomLevel(defaultZoom);
+    paper.view.zoom = defaultZoom;
+    paper.view.center = paper.view.bounds.center;
+    paper.view.requestUpdate();
+    console.log(`[Zoom] Reset to ${defaultZoom}x`);
+  }, []);
+
+  const handleZoomFit = useCallback(() => {
+    if (!paper || !paper.view || !hasTrack) return;
+    
+    try {
+      // Get all track elements to calculate bounds
+      const trackElements = paper.project.activeLayer.children.filter(
+        (child) =>
+          child.data?.type === "track" ||
+          child.data?.subtype === "center" ||
+          child.data?.subtype === "left" ||
+          child.data?.subtype === "right"
+      );
+      
+      if (trackElements.length === 0) return;
+      
+      // Calculate bounding box of all track elements
+      let bounds = trackElements[0].bounds;
+      for (let i = 1; i < trackElements.length; i++) {
+        bounds = bounds.unite(trackElements[i].bounds);
+      }
+      
+      // Add padding
+      const padding = 50;
+      bounds = bounds.expand(padding);
+      
+      // Calculate zoom to fit
+      const canvasWidth = paper.view.viewSize.width;
+      const canvasHeight = paper.view.viewSize.height;
+      
+      const zoomX = canvasWidth / bounds.width;
+      const zoomY = canvasHeight / bounds.height;
+      const fitZoom = Math.min(zoomX, zoomY);
+      
+      // Apply constraints
+      const finalZoom = Math.max(minZoom, Math.min(maxZoom, fitZoom));
+      
+      setZoomLevel(finalZoom);
+      paper.view.zoom = finalZoom;
+      paper.view.center = bounds.center;
+      paper.view.requestUpdate();
+      
+      console.log(`[Zoom] Fitted track at ${finalZoom.toFixed(1)}x`);
+    } catch (error) {
+      console.error("[Zoom] Error fitting track:", error);
+      handleZoomReset(); // Fallback to reset
+    }
+  }, [hasTrack, minZoom, maxZoom, handleZoomReset]);
+
+  // Mouse wheel zoom functionality
+  const handleWheel = useCallback((event: WheelEvent) => {
+    if (!paper || !paper.view) return;
+    
+    event.preventDefault();
+    
+    const delta = event.deltaY;
+    const zoomFactor = delta > 0 ? 0.9 : 1.1; // Zoom out or in
+    
+    // Get mouse position relative to canvas
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+    const mousePoint = new paper.Point(mouseX, mouseY);
+    
+    // Convert to paper coordinates
+    const paperMousePoint = paper.view.viewToProject(mousePoint);
+    
+    const newZoom = Math.max(minZoom, Math.min(maxZoom, zoomLevel * zoomFactor));
+    
+    if (newZoom !== zoomLevel) {
+      setZoomLevel(newZoom);
+      
+      // Zoom toward mouse position
+      const currentCenter = paper.view.center;
+      const zoomChange = newZoom / zoomLevel;
+      
+      // Calculate new center to zoom toward mouse
+      const newCenter = currentCenter.add(
+        paperMousePoint.subtract(currentCenter).multiply(1 - 1/zoomChange)
+      );
+      
+      paper.view.zoom = newZoom;
+      paper.view.center = newCenter;
+      paper.view.requestUpdate();
+      
+      console.log(`[Zoom] Mouse wheel zoom to ${newZoom.toFixed(1)}x`);
+    }
+  }, [zoomLevel, minZoom, maxZoom]);
+
+  // Add wheel event listener for zoom
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    canvas.addEventListener('wheel', handleWheel, { passive: false });
+    
+    return () => {
+      canvas.removeEventListener('wheel', handleWheel);
+    };
+  }, [handleWheel]);
+
+  // Add keyboard shortcuts for zoom
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle zoom shortcuts when canvas is focused or no input is focused
+      if (document.activeElement?.tagName === 'INPUT' || 
+          document.activeElement?.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      switch (event.key) {
+        case '+':
+        case '=':
+          event.preventDefault();
+          handleZoomIn();
+          break;
+        case '-':
+        case '_':
+          event.preventDefault();
+          handleZoomOut();
+          break;
+        case '0':
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault();
+            handleZoomReset();
+          }
+          break;
+        case 'f':
+        case 'F':
+          if (hasTrack) {
+            event.preventDefault();
+            handleZoomFit();
+          }
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleZoomIn, handleZoomOut, handleZoomReset, handleZoomFit, hasTrack]);
+
+  // Helper function to calculate track length
+  const calculateTrackLength = (trackPoints: Point[]) => {
+    let length = 0;
+    for (let i = 1; i < trackPoints.length; i++) {
+      const dx = trackPoints[i].x - trackPoints[i - 1].x;
+      const dy = trackPoints[i].y - trackPoints[i - 1].y;
+      length += Math.sqrt(dx * dx + dy * dy);
+    }
+    return length / 1000; // Convert to kilometers for display
+  };
+
+  // Helper function to scale and center track points for canvas display
+  const scaleTrackToCanvas = (trackPoints: Point[], canvasWidth: number, canvasHeight: number) => {
+    if (trackPoints.length === 0) return trackPoints;
+    
+    // Find bounds of track points
+    const minX = Math.min(...trackPoints.map(p => p.x));
+    const maxX = Math.max(...trackPoints.map(p => p.x));
+    const minY = Math.min(...trackPoints.map(p => p.y));
+    const maxY = Math.max(...trackPoints.map(p => p.y));
+    
+    const trackWidth = maxX - minX;
+    const trackHeight = maxY - minY;
+    
+    // Ensure we have valid dimensions
+    if (trackWidth === 0 || trackHeight === 0) return trackPoints;
+    
+    // Calculate scale to fit canvas with adaptive padding
+    const minPadding = 40;
+    const maxPadding = 80;
+    const adaptivePadding = Math.min(maxPadding, Math.max(minPadding, Math.min(canvasWidth, canvasHeight) * 0.1));
+    
+    const scaleX = (canvasWidth - 2 * adaptivePadding) / trackWidth;
+    const scaleY = (canvasHeight - 2 * adaptivePadding) / trackHeight;
+    const scale = Math.min(scaleX, scaleY);
+    
+    // Calculate centering offsets to center the track perfectly
+    const scaledWidth = trackWidth * scale;
+    const scaledHeight = trackHeight * scale;
+    const offsetX = (canvasWidth - scaledWidth) / 2 - minX * scale;
+    const offsetY = (canvasHeight - scaledHeight) / 2 - minY * scale;
+    
+    // Scale and center points
+    return trackPoints.map(point => ({
+      x: point.x * scale + offsetX,
+      y: point.y * scale + offsetY
+    }));
+  };
+
+  // Function to draw track from preset data (using same style as custom tracks)
+  const drawPresetTrack = (trackPoints: Point[]) => {
+    console.log(`[drawPresetTrack] Starting to draw track with ${trackPoints.length} points`);
+    if (!paper || trackPoints.length === 0) return;
+    
+    // Get canvas dimensions
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const canvasWidth = canvas.width;
+    const canvasHeight = canvas.height;
+    console.log(`[drawPresetTrack] Canvas dimensions: ${canvasWidth}x${canvasHeight}`);
+    
+    // Scale track points to fit canvas
+    const scaledPoints = scaleTrackToCanvas(trackPoints, canvasWidth, canvasHeight);
+    
+    // Clear existing paths more carefully
+    try {
+      paper.project.clear();
+      // Ensure we have a default layer after clearing
+      if (paper.project.layers.length === 0) {
+        new paper.Layer(); // Create default layer
+      }
+    } catch (error) {
+      console.error("[drawPresetTrack] Error clearing canvas:", error);
+      // Fallback: try to clear children only
+      if (paper.project.layers && paper.project.layers[0]) {
+        paper.project.layers[0].removeChildren();
+      }
+    }
+    
+    // Use the same drawing method as custom tracks for consistency
+    // Pass isCircuit=true since F1 tracks are closed circuits
+    drawTrackWithBoundaries(scaledPoints, false, false, true);
+    
+    // Update lines state
+    setLines([scaledPoints]);
+    
+    // 🔥 FIX: Set internalTrackPoints for simulation to work on preset tracks
+    setInternalTrackPoints(scaledPoints);
+    console.log(`[drawPresetTrack] Set internalTrackPoints with ${scaledPoints.length} points for simulation`);
+    
+    // Calculate track statistics
+    const length = calculateTrackLength(scaledPoints);
+    const curvature = calculateCurvature(scaledPoints);
+    
+    // Notify parent component if callback exists
+    if (onTrackUpdate) {
+      onTrackUpdate(scaledPoints, curvature, length);
+    }
+    
+    // Update track length in parent
+    if (onTrackLengthChange) {
+      onTrackLengthChange(length);
+    }
+    
+    // Set track flags
+    setHasTrack(true);
+    
+    // Redraw the canvas
+    paper.view.update();
+  };
+
+  // Helper function to create a hash for track points
+  const createTrackHash = (points: Point[]): string => {
+    return points.length > 0 ? `${points.length}-${points[0].x}-${points[0].y}-${points[Math.floor(points.length/2)]?.x || 0}` : '';
+  };
+
+  // Watch for lines changes to draw preset tracks (FIXED: removed circular dependency)
+  useEffect(() => {
+    if (lines.length === 1 && lines[0].length > 0 && paper && !isDrawingTrack) {
+      const trackPoints = lines[0];
+      const currentHash = createTrackHash(trackPoints);
+      
+      // Check if this is a new track from external source (preset)
+      if (currentHash !== lastTrackHash.current && trackPoints.length > 5) {
+        console.log(`[CanvasDrawPaper] New external track detected, drawing ${trackPoints.length} points`);
+        lastTrackHash.current = currentHash;
+        lastTrackSource.current = 'preset';
+        
+        // Use setTimeout to prevent direct state mutation during render
+        setTimeout(() => {
+          drawPresetTrack(trackPoints);
+        }, 0);
+      } else {
+        console.log(`[CanvasDrawPaper] Track unchanged or custom track, skipping redraw`);
+      }
+    } else if (lines.length === 0 && paper) {
+      // Lines were cleared
+      console.log(`[CanvasDrawPaper] Lines cleared, resetting track state`);
+      setInternalTrackPoints([]);
+      setHasTrack(false);
+      lastTrackSource.current = 'none';
+      lastTrackHash.current = '';
+    }
+  }, [lines, paper, isDrawingTrack]); // FIXED: Removed internalTrackPoints from dependencies
 
   return (
     <div className="w-full h-full relative bg-gray-50">
@@ -1925,6 +2376,60 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
 
       {/* Control buttons */}
       <div className="absolute top-3 right-3 flex gap-2" role="toolbar">
+        {/* Zoom controls */}
+        <div className="flex flex-col gap-1">
+          {/* Zoom in/out row */}
+          <div className="flex gap-1">
+            <button
+              onClick={handleZoomIn}
+              disabled={zoomLevel >= maxZoom}
+              className={`w-8 h-8 flex items-center justify-center font-mono text-xs font-bold rounded border transition-all shadow-sm ${
+                zoomLevel >= maxZoom
+                  ? "bg-gray-300 border-gray-300 text-gray-500 cursor-not-allowed"
+                  : "bg-blue-600 border-blue-500 text-white hover:bg-blue-700"
+              }`}
+              title={`Zoom In (${(zoomLevel + zoomStep).toFixed(1)}x)`}
+            >
+              +
+            </button>
+            <button
+              onClick={handleZoomOut}
+              disabled={zoomLevel <= minZoom}
+              className={`w-8 h-8 flex items-center justify-center font-mono text-xs font-bold rounded border transition-all shadow-sm ${
+                zoomLevel <= minZoom
+                  ? "bg-gray-300 border-gray-300 text-gray-500 cursor-not-allowed"
+                  : "bg-blue-600 border-blue-500 text-white hover:bg-blue-700"
+              }`}
+              title={`Zoom Out (${(zoomLevel - zoomStep).toFixed(1)}x)`}
+            >
+              −
+            </button>
+          </div>
+          {/* Zoom fit/reset row */}
+          <div className="flex gap-1">
+            <button
+              onClick={handleZoomFit}
+              disabled={!hasTrack}
+              className={`w-8 h-8 flex items-center justify-center font-mono text-xs font-bold rounded border transition-all shadow-sm ${
+                !hasTrack
+                  ? "bg-gray-300 border-gray-300 text-gray-500 cursor-not-allowed"
+                  : "bg-purple-600 border-purple-500 text-white hover:bg-purple-700"
+              }`}
+              title="Fit Track to View"
+            >
+              ⧉
+            </button>
+            <button
+              onClick={handleZoomReset}
+              className="w-8 h-8 flex items-center justify-center font-mono text-xs font-bold rounded border transition-all shadow-sm bg-gray-600 border-gray-500 text-white hover:bg-gray-700"
+              title="Reset Zoom (1.8x)"
+            >
+              ◯
+            </button>
+          </div>
+        </div>
+
+        {/* Main action buttons */}
         <button
           onClick={handleAnimateClick}
           disabled={
@@ -1978,6 +2483,14 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
         >
           ✕ CLEAR
         </button>
+      </div>
+
+      {/* Zoom level indicator */}
+      <div 
+        className="absolute bottom-3 right-3 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs font-mono cursor-help"
+        title="Zoom Controls:&#10;Mouse Wheel: Zoom in/out&#10;+/-: Zoom buttons&#10;Ctrl+0: Reset zoom&#10;F: Fit track to view"
+      >
+        Zoom: {zoomLevel.toFixed(1)}x
       </div>
     </div>
   );
