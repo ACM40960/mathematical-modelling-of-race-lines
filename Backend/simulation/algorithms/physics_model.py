@@ -67,7 +67,9 @@ class PhysicsBasedModel(BaseRacingLineModel):
         air_density = 1.225  # kg/m³
         
         # Initialize curvilinear coordinate system
+        print(f"   🌀 Initializing curvilinear coordinate system...")
         coord_system = create_curvilinear_system(track_points, track_width / 2)
+        print(f"   ✅ Curvilinear system ready")
         track_geometry = coord_system.track_geometry
         
         # Use enhanced track geometry from curvilinear system

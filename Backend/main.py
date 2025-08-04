@@ -76,15 +76,33 @@ async def simulate_racing_line(request: SimulationRequest):
     """
     Calculate optimal racing line for given track and car parameters
     """
-    # Log basic simulation parameters
-    print(f"Starting simulation: {len(request.cars)} cars, {len(request.track_points)} track points, model: {request.model}")
-
+    print("\n" + "="*80)
+    print("🏁 SIMULATION REQUEST RECEIVED")
+    print("="*80)
+    print(f"📊 Request Details:")
+    print(f"  • Track Points: {len(request.track_points)} points")
+    print(f"  • Track Width: {request.width}m")
+    print(f"  • Track Friction: {request.friction}")
+    print(f"  • Cars: {len(request.cars)} car(s)")
+    print(f"  • Model: {request.model}")
     
+    for i, car_data in enumerate(request.cars):
+        print(f"  • Car {i+1}: {car_data.get('team_name', 'Unknown')}")
+        print(f"    - Mass: {car_data.get('mass', 'N/A')}kg")
+        print(f"    - Drag Coeff: {car_data.get('drag_coefficient', 'N/A')}")
+        print(f"    - Lift Coeff: {car_data.get('lift_coefficient', 'N/A')}")
+
     try:
         # Convert request to Track object
+        print(f"\n🛤️  TRACK PROCESSING:")
         from schemas.track import TrackPoint
         track_points = [TrackPoint(x=p['x'], y=p['y']) for p in request.track_points]
+        print(f"  • Converting {len(track_points)} points to TrackPoint objects")
+        print(f"  • First point: ({track_points[0].x:.2f}, {track_points[0].y:.2f})")
+        print(f"  • Last point: ({track_points[-1].x:.2f}, {track_points[-1].y:.2f})")
+        
         cars = [Car(**car_data) for car_data in request.cars]
+        print(f"  • Converting {len(cars)} car objects")
         
         track = Track(
             track_points=track_points,
@@ -92,27 +110,51 @@ async def simulate_racing_line(request: SimulationRequest):
             friction=request.friction,
             cars=cars
         )
+        print(f"  • Track object created successfully")
         
         # Track object created successfully
         
         # Validate and set the model
+        print(f"\n🧠 MODEL VALIDATION:")
+        print(f"  • Requested model: '{request.model}'")
         try:
             # get the requested model
             model = RacingLineModel(request.model)
+            print(f"  • Model validated: {model}")
         except ValueError:
-            print(f"Warning: Unknown model '{request.model}', using physics_based")
+            print(f"  • ⚠️  Unknown model '{request.model}', using physics_based fallback")
             model = RacingLineModel.PHYSICS_BASED
         
         # Run simulation with the specified model
+        print(f"\n🏎️  STARTING OPTIMIZATION:")
+        print(f"  • Calling optimize_racing_line() with {model}")
         optimal_lines = optimize_racing_line(track, model)
         
         # Log simulation completion
+        print(f"\n✅ SIMULATION COMPLETED:")
+        print(f"  • Generated {len(optimal_lines)} racing line(s)")
         lap_times = [line.get('lap_time', 0) for line in optimal_lines]
-        print(f"Simulation completed: {len(optimal_lines)} cars, fastest lap: {min(lap_times):.2f}s")
+        if lap_times and any(t > 0 for t in lap_times):
+            valid_times = [t for t in lap_times if t > 0]
+            print(f"  • Lap times: {valid_times}")
+            print(f"  • Fastest lap: {min(valid_times):.2f}s")
+        else:
+            print(f"  • No valid lap times calculated")
+        
+        for i, line in enumerate(optimal_lines):
+            if 'racing_line' in line:
+                print(f"  • Car {i+1}: {len(line['racing_line'])} racing line points")
+        print("="*80)
         
         return {"optimal_lines": optimal_lines}
     except Exception as e:
-        print(f"Simulation error: {str(e)}")
+        print(f"\n❌ SIMULATION FAILED:")
+        print(f"  • Error: {str(e)}")
+        print(f"  • Type: {type(e).__name__}")
+        import traceback
+        print(f"  • Traceback:")
+        traceback.print_exc()
+        print("="*80)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/models")
