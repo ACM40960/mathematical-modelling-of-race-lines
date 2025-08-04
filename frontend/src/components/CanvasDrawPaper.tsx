@@ -1522,11 +1522,40 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     setIsSimulating(true);
     try {
       const trackPoints = internalTrackPoints;
+      
+      // Ensure all cars have required fields for backend validation
+      const validatedCars = cars.map(car => {
+        const validatedCar = {
+          // Required fields with fallbacks
+          id: car.id || `car_${Math.random().toString(36).substr(2, 9)}`,
+          mass: car.mass || 750,
+          length: car.length || 5.0,
+          width: car.width || 1.4,
+          max_steering_angle: car.max_steering_angle || 30,
+          max_acceleration: car.max_acceleration || 5,
+          drag_coefficient: car.drag_coefficient || 1.0,
+          lift_coefficient: car.lift_coefficient || 3.0,
+          team_name: car.team_name || 'Team',
+          car_color: car.car_color || '#0000FF',
+          accent_color: car.accent_color || '#FFFFFF',
+          tire_compound: car.tire_compound || 'medium'
+        };
+        
+        // Add any additional properties from the original car
+        Object.keys(car).forEach(key => {
+          if (!(key in validatedCar)) {
+            (validatedCar as any)[key] = (car as any)[key];
+          }
+        });
+        
+        return validatedCar;
+      });
+      
       const requestData = {
         track_points: trackPoints.map((p) => ({ x: p.x, y: p.y })),
         width: trackWidth,
         friction: 0.7,
-        cars: cars,
+        cars: validatedCars,
         model: selectedModel,
       };
 

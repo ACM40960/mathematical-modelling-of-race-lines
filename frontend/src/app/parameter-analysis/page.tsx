@@ -29,14 +29,40 @@ export default function ParameterAnalysisPage() {
     if (loadedTrack) setTrack(loadedTrack);
     if (loadedCars.length > 0) {
       setCars(loadedCars);
-      // Set base car for analysis
-      const baseCarWithPhysics = {
-        ...loadedCars[0],
+      // Set base car for analysis with all required fields
+      const baseCarWithPhysics: Car = {
+        id: loadedCars[0].id || 'base_car',
+        mass: loadedCars[0].mass || 750,
+        length: loadedCars[0].length || 5.0,
+        width: loadedCars[0].width || 1.4,
+        max_steering_angle: loadedCars[0].max_steering_angle || 30,
+        max_acceleration: loadedCars[0].max_acceleration || 5,
         drag_coefficient: loadedCars[0].drag_coefficient || 1.0,
         lift_coefficient: loadedCars[0].lift_coefficient || 3.0,
+        team_name: loadedCars[0].team_name || 'Analysis Team',
+        car_color: loadedCars[0].car_color || '#0000FF',
+        accent_color: loadedCars[0].accent_color || '#FFFFFF',
         effective_frontal_area: loadedCars[0].effective_frontal_area || 2.5,
+        tire_compound: loadedCars[0].tire_compound || 'medium',
       };
       setBaseCar(baseCarWithPhysics);
+    } else {
+      // Create default car when no cars are available
+      const defaultCar: Car = {
+        id: 'default_analysis_car',
+        mass: 750,
+        length: 5.0,
+        width: 1.4,
+        max_steering_angle: 30,
+        max_acceleration: 5,
+        drag_coefficient: 1.0,
+        lift_coefficient: 3.0,
+        team_name: 'Analysis Team',
+        car_color: '#0000FF',
+        accent_color: '#FFFFFF',
+        tire_compound: 'medium',
+      };
+      setBaseCar(defaultCar);
     }
     if (loadedResults.length > 0) setSimulationResults(loadedResults);
 
@@ -60,12 +86,21 @@ export default function ParameterAnalysisPage() {
         const updatedCars = loadCars();
         if (updatedCars.length > 0) {
           setCars(updatedCars);
-          // Update base car for analysis
-          const baseCarWithPhysics = {
-            ...updatedCars[0],
+          // Update base car for analysis with all required fields
+          const baseCarWithPhysics: Car = {
+            id: updatedCars[0].id || 'base_car',
+            mass: updatedCars[0].mass || 750,
+            length: updatedCars[0].length || 5.0,
+            width: updatedCars[0].width || 1.4,
+            max_steering_angle: updatedCars[0].max_steering_angle || 30,
+            max_acceleration: updatedCars[0].max_acceleration || 5,
             drag_coefficient: updatedCars[0].drag_coefficient || 1.0,
             lift_coefficient: updatedCars[0].lift_coefficient || 3.0,
+            team_name: updatedCars[0].team_name || 'Analysis Team',
+            car_color: updatedCars[0].car_color || '#0000FF',
+            accent_color: updatedCars[0].accent_color || '#FFFFFF',
             effective_frontal_area: updatedCars[0].effective_frontal_area || 2.5,
+            tire_compound: updatedCars[0].tire_compound || 'medium',
           };
           setBaseCar(baseCarWithPhysics);
           console.log('🚗 Cars updated from Track Designer');
@@ -248,6 +283,40 @@ export default function ParameterAnalysisPage() {
               <div className="p-3 bg-purple-50 border border-purple-200 rounded text-xs">
                 <div className="flex items-center">
                   <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                  <span className="text-purple-800 font-medium">Live Data Sync Active</span>
+                </div>
+                <p className="text-purple-700 mt-1">
+                  Automatically receives updates from Track Designer window
+                </p>
+              </div>
+
+              {/* Method Info - F1 Style Compact */}
+              <div className="w-full bg-gray-50 text-gray-800 text-xs border border-gray-300 rounded shadow-sm">
+                {/* Header */}
+                <div className="bg-gray-100 px-3 py-1.5 border-b border-gray-300">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-bold text-blue-700">METHOD</h2>
+                    <span className="text-green-600 text-xs">PHYSICS</span>
+                  </div>
+                </div>
+
+                {/* Method Details - Compact */}
+                <div className="px-3 py-1.5">
+                  <div className="space-y-0.5 text-gray-600 text-xs">
+                    <div>• Real physics simulations</div>
+                    <div>• Systematic parameter testing</div>
+                    <div>• Actual lap time measurements</div>
+                    <div>• No theoretical equations</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                   <span className="text-purple-800 font-medium">Live Data Sync Active</span>
                 </div>
                 <p className="text-purple-700 mt-1">

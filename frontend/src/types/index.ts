@@ -9,6 +9,8 @@ export interface Car {
   drag_coefficient?: number;
   lift_coefficient?: number;
   effective_frontal_area?: number;
+  // Racing line model
+  model?: string;
   // Customization options
   team_name: string;
   car_color: string;
