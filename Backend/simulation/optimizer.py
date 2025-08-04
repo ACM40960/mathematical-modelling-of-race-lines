@@ -12,17 +12,20 @@ from enum import Enum
 # Import the new model classes
 from .algorithms.physics_model import PhysicsBasedModel
 from .algorithms.basic_model import BasicModel
+from .algorithms.kapania_model import KapaniaModel
 from .aerodynamics import aerodynamic_model, get_speed_dependent_coefficients
 
 class RacingLineModel(str, Enum):
     """Available racing line calculation models"""
     PHYSICS_BASED = "physics_based"
     BASIC = "basic"
+    TWO_STEP_ALGORITHM = "two_step_algorithm"
 
 # Initialize model instances
 MODELS = {
     RacingLineModel.PHYSICS_BASED: PhysicsBasedModel(),
-    RacingLineModel.BASIC: BasicModel()
+    RacingLineModel.BASIC: BasicModel(),
+    RacingLineModel.TWO_STEP_ALGORITHM: KapaniaModel()
 }
 
 def resample_track_points(points: np.ndarray, num_points: int = 50) -> np.ndarray:
@@ -480,20 +483,6 @@ def create_separated_racing_lines(
             car_racing_line = np.vstack([car_racing_line, car_racing_line[0]])
         
         racing_lines.append(car_racing_line)
-    
-    return racing_lines
-
-def get_available_models() -> List[Dict]:
-    """
-    Get information about all available racing line models
-    """
-    models = []
-    for model_key, model_instance in MODELS.items():
-        model_info = model_instance.get_model_info()
-        model_info["id"] = model_key.value
-        models.append(model_info)
-    
-    return models 
     
     return racing_lines
 

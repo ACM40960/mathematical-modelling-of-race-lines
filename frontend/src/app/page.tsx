@@ -10,7 +10,9 @@ export default function Home() {
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center">
-            <div className="text-2xl font-bold text-gray-900">🏁 F1 Racing Lines</div>
+            <div className="text-2xl font-bold text-gray-900">
+              🏁 F1 Racing Lines
+            </div>
           </div>
         </div>
       </div>
@@ -22,13 +24,13 @@ export default function Home() {
             F1 Racing Line Simulator
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Design tracks, configure cars, and analyze physics-based racing lines with real-time parameter sensitivity analysis.
+            Design tracks, configure cars, and analyze physics-based racing
+            lines with real-time parameter sensitivity analysis.
           </p>
         </div>
 
         {/* Navigation Cards */}
         <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-          
           {/* Track Designer Card */}
           <Link href="/track-designer" className="group">
             <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-8 hover:shadow-xl transition-shadow">
@@ -38,9 +40,10 @@ export default function Home() {
                   Track Designer
                 </h2>
                 <p className="text-gray-600 mb-6">
-                  Design custom tracks, configure F1 cars, and simulate physics-based racing lines with our interactive canvas.
+                  Design custom tracks, configure F1 cars, and simulate
+                  physics-based racing lines with our interactive canvas.
                 </p>
-                
+
                 {/* Features */}
                 <div className="text-left space-y-2 mb-6">
                   <div className="flex items-center text-sm text-gray-700">
@@ -58,6 +61,10 @@ export default function Home() {
                   <div className="flex items-center text-sm text-gray-700">
                     <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
                     Physics-based simulation
+                  </div>
+                  <div className="flex items-center text-sm text-gray-700">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
+                    Two step algorithm implementation
                   </div>
                 </div>
 
@@ -77,7 +84,8 @@ export default function Home() {
                   Parameter Analysis
                 </h2>
                 <p className="text-gray-600 mb-6">
-                  Real-time parameter sensitivity analysis showing how car physics affect lap times and performance.
+                  Real-time parameter sensitivity analysis showing how car
+                  physics affect lap times and performance.
                 </p>
 
                 {/* Features */}
@@ -107,8 +115,6 @@ export default function Home() {
             </div>
           </Link>
         </div>
-
-
       </div>
     </div>
   );
