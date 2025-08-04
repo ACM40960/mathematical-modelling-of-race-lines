@@ -72,7 +72,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
   selectedModel,
 }) => {
   // Add scaling factor to convert meters to pixels
-  const METERS_TO_PIXELS = 2; // 1 meter = 2 pixels (reduced from 5)
+  const METERS_TO_PIXELS = 5; // 1 meter = 5 pixels (increased for better visibility)
   const [paperLoaded, setPaperLoaded] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const currentPath = useRef<paper.Path | null>(null);
@@ -97,7 +97,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
   const lastTrackHash = useRef<string>('');
   
   // Zoom state management
-  const [zoomLevel, setZoomLevel] = useState(1.8); // Start with current default
+  const [zoomLevel, setZoomLevel] = useState(1.0); // Start with 1.0x zoom (no zoom)
   const minZoom = 0.1;
   const maxZoom = 10.0;
   const zoomStep = 0.2;
@@ -1560,6 +1560,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       };
 
       console.log("Sending simulation request:", requestData);
+      console.log("🔍 Model being sent to backend:", selectedModel);
 
       const response = await fetch("http://localhost:8000/simulate", {
         method: "POST",
