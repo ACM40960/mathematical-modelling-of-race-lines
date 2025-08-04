@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+numpy
+scipy
+matplotlib
+pydantic
+python-multipart
+sqlalchemy
+psycopg2-binary
+alembic 
