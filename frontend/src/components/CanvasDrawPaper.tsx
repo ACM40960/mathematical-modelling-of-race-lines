@@ -1616,8 +1616,8 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
 
   // Create realistic F1 car with proper proportions and features
   const createF1Car = (position: CarPosition, car: Car) => {
-    const carLength = 19; // F1 car length in pixels (scaled from ~5m)
-    const carWidth = 4.4; // F1 car width in pixels (scaled from ~2m)
+    const carLength = 25; // F1 car length in pixels (increased from 19)
+    const carWidth = 6.0; // F1 car width in pixels (increased from 4.4)
 
     // Get car colors
     const primaryColor = car.car_color || "#e11d48";
@@ -2051,7 +2051,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     }
 
     // Reset zoom to default
-    const defaultZoom = 1.8;
+    const defaultZoom = 1.0;
     setZoomLevel(defaultZoom);
     if (paper && paper.view) {
       paper.view.zoom = defaultZoom;
@@ -2085,7 +2085,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
   const handleZoomReset = useCallback(() => {
     if (!paper || !paper.view) return;
     
-    const defaultZoom = 1.8;
+    const defaultZoom = 1.0;
     setZoomLevel(defaultZoom);
     paper.view.zoom = defaultZoom;
     paper.view.center = paper.view.bounds.center;
