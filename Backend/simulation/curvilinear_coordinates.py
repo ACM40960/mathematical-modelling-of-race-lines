@@ -174,6 +174,7 @@ class CurvilinearCoordinateSystem:
         # Normalize xi to [-π, π]
         xi = np.arctan2(np.sin(xi), np.cos(xi))
         
+        print(f"         ✅ Curvilinear result: s={s:.2f}, n={n:.2f}, ξ={xi:.3f}")
         return s, n, xi
     
     def transform_to_global(self, s: float, n: float, xi: float) -> Tuple[np.ndarray, float]:
