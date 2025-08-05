@@ -177,7 +177,16 @@ export default function TrackDesigner() {
     // Set loading flag to prevent clearing selectedTrackName
     setIsLoadingPreset(true);
 
-    // Update lines with preset track points
+    // Store ORIGINAL track data for backend simulation (unscaled)
+    (window as any).presetTrackLength = trackPreset.track_length; // meters
+    (window as any).originalTrackPoints = trackPreset.track_points; // original coordinates
+    (window as any).originalTrackWidth = trackPreset.width; // original width in meters
+
+    console.log(
+      `Stored original data: ${trackPreset.track_points.length} points, width: ${trackPreset.width}m`
+    );
+
+    // Update lines with preset track points (these will be scaled for display)
     setLines([trackPreset.track_points]);
 
     // Update track state
