@@ -8,7 +8,7 @@ import React, {
   SetStateAction,
   useCallback,
 } from "react";
-import { Point, Car } from "../types";
+import { Point, Car, Track } from "../types";
 import paper from "paper";
 
 interface SimulationResult {
@@ -72,7 +72,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
   selectedModel,
 }) => {
   // Add scaling factor to convert meters to pixels
-  const METERS_TO_PIXELS = 5; // 1 meter = 5 pixels (increased for better visibility)
+  const METERS_TO_PIXELS = 2; // 1 meter = 2 pixels (reduced from 5)
   const [paperLoaded, setPaperLoaded] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const currentPath = useRef<paper.Path | null>(null);
@@ -97,7 +97,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
   const lastTrackHash = useRef<string>("");
 
   // Zoom state management
-  const [zoomLevel, setZoomLevel] = useState(1.0); // Start with 1.0x zoom (no zoom)
+  const [zoomLevel, setZoomLevel] = useState(1.8); // Start with current default
   const minZoom = 0.1;
   const maxZoom = 10.0;
   const zoomStep = 0.2;
@@ -1315,11 +1315,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       if (coordinates && coordinates.length > 1) {
         // Find the car to get its accent color
         const car = cars.find((c) => c.id === car_id);
-        // Use bright colors for racing lines to ensure visibility
-        const racingLineColor =
-          car?.accent_color === "#000000" || car?.accent_color === "#FFFFFF"
-            ? "#FF0000" // Bright red for black/white cars
-            : car?.accent_color || "#FF0000"; // Fallback to red if car not found
+        const racingLineColor = car?.accent_color || "#000000"; // Fallback to black if car not found
 
         const racingLinePath = new paper.Path({
           segments: coordinates.map(
@@ -1333,8 +1329,8 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
           data: { type: "racing_line", car_id: car_id },
         });
         racingLinePath.smooth();
-        // Keep racing line on top for better visibility (don't send to back)
-        // racingLinePath.sendToBack();
+        // Send racing line to back so it appears behind the track
+        racingLinePath.sendToBack();
 
         console.log(
           `[Racing Line] Drew ${
@@ -1347,8 +1343,76 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     // Restore original layer
     originalLayer.activate();
 
+    // Calculate physics-based animation timing for each car
+    const carAnimationData = results.optimal_lines.map((result: any) => {
+      const { car_id, coordinates, speeds, lap_time } = result;
+      const totalPoints = coordinates.length;
+
+      if (totalPoints < 2 || !speeds || speeds.length === 0) {
+        return {
+          car_id,
+          cumulativeTimes: [],
+          lapTimeMs: 18000,
+          coordinates,
+          speeds: [],
+        };
+      }
+
+      // Calculate distance between consecutive points
+      const distances = [];
+      for (let i = 0; i < totalPoints - 1; i++) {
+        const dx = coordinates[i + 1][0] - coordinates[i][0];
+        const dy = coordinates[i + 1][1] - coordinates[i][1];
+        distances.push(Math.sqrt(dx * dx + dy * dy));
+      }
+      // Close the loop - distance from last point back to first
+      const dx = coordinates[0][0] - coordinates[totalPoints - 1][0];
+      const dy = coordinates[0][1] - coordinates[totalPoints - 1][1];
+      distances.push(Math.sqrt(dx * dx + dy * dy));
+
+      // Calculate cumulative time for each segment based on speeds
+      // Time for each segment = distance / speed
+      const segmentTimes = [];
+      const cumulativeTimes = [0]; // Start at time 0
+
+      for (let i = 0; i < distances.length; i++) {
+        const speed = speeds[i] || 10; // Fallback speed
+        const segmentTime = distances[i] / speed; // time = distance / speed
+        segmentTimes.push(segmentTime);
+        cumulativeTimes.push(
+          cumulativeTimes[cumulativeTimes.length - 1] + segmentTime
+        );
+      }
+
+      // Use actual lap time from simulation, with fallback
+      const lapTimeMs =
+        (lap_time && lap_time > 0
+          ? lap_time
+          : cumulativeTimes[cumulativeTimes.length - 1]) * 1000;
+
+      console.log(
+        `🏎️ ${car_id}: Lap time ${(lapTimeMs / 1000).toFixed(
+          2
+        )}s, Speed range: ${Math.min(...speeds).toFixed(1)}-${Math.max(
+          ...speeds
+        ).toFixed(1)} m/s`
+      );
+      console.log(
+        `🕒 Animation will use realistic timing: ${(lapTimeMs / 1000).toFixed(
+          1
+        )}s per lap (was 18s fixed)`
+      );
+
+      return {
+        car_id,
+        cumulativeTimes,
+        lapTimeMs,
+        coordinates,
+        speeds,
+      };
+    });
+
     let startTime: number | null = null;
-    const duration = 18000; // 18 seconds per lap for smoother viewing
     let isRunning = true;
 
     const animate = (timestamp: number) => {
@@ -1356,63 +1420,67 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
 
       if (!startTime) startTime = timestamp;
       const elapsed = timestamp - startTime;
-      // Continuous loop - no visible restart
-      let progress = (elapsed % duration) / duration;
 
-      // Smooth progress transition to eliminate speed-ups near finish
-      // Apply easing to make the animation more consistent
-      progress = progress; // Linear for now, could add easing functions here
-
-      // Update car positions for smooth interpolation
+      // Update car positions based on actual physics timing
       const newPositions: Record<string, CarPosition> = {};
 
-      results.optimal_lines.forEach((result: any) => {
-        const { car_id, coordinates, speeds } = result;
+      carAnimationData.forEach((carData: any) => {
+        const { car_id, cumulativeTimes, lapTimeMs, coordinates, speeds } =
+          carData;
         const totalPoints = coordinates.length;
 
-        if (totalPoints < 2) return; // Need at least 2 points
+        if (totalPoints < 2) return;
 
-        // More robust progress calculation to avoid speed-ups near finish
-        const adjustedProgress = progress * (totalPoints - 1); // Scale to avoid exact wraparound
-        const currentIndex = Math.floor(adjustedProgress);
-        const nextIndex = currentIndex + 1;
+        // Calculate current time position in the lap (with looping)
+        const currentLapTime = elapsed % lapTimeMs;
 
-        // Handle wraparound more carefully
-        const safeCurrentIndex = currentIndex % totalPoints;
-        const safeNextIndex = nextIndex >= totalPoints ? 0 : nextIndex;
+        // Find which segment the car is currently in based on cumulative time
+        let segmentIndex = 0;
+        for (let i = 0; i < cumulativeTimes.length - 1; i++) {
+          if (
+            currentLapTime >= cumulativeTimes[i] * 1000 &&
+            currentLapTime < cumulativeTimes[i + 1] * 1000
+          ) {
+            segmentIndex = i;
+            break;
+          }
+        }
 
-        const currentPos = coordinates[safeCurrentIndex];
-        const nextPos = coordinates[safeNextIndex];
-        const currentSpeed = speeds?.[safeCurrentIndex] || 0;
-        const nextSpeed = speeds?.[safeNextIndex] || currentSpeed;
+        // Handle wraparound to prevent index out of bounds
+        const currentIndex = segmentIndex % totalPoints;
+        const nextIndex = (segmentIndex + 1) % totalPoints;
+
+        const currentPos = coordinates[currentIndex];
+        const nextPos = coordinates[nextIndex];
+        const currentSpeed = speeds[currentIndex] || 10;
+        const nextSpeed = speeds[nextIndex] || currentSpeed;
 
         if (currentPos && nextPos) {
-          // Smooth interpolation between points
-          const localProgress = adjustedProgress - currentIndex;
+          // Calculate how far along this segment we are based on time
+          const segmentStartTime = cumulativeTimes[segmentIndex] * 1000;
+          const segmentEndTime = cumulativeTimes[segmentIndex + 1] * 1000;
+          const segmentProgress =
+            segmentEndTime > segmentStartTime
+              ? (currentLapTime - segmentStartTime) /
+                (segmentEndTime - segmentStartTime)
+              : 0;
 
-          // Handle potential wraparound discontinuity
-          let deltaX = nextPos[0] - currentPos[0];
-          let deltaY = nextPos[1] - currentPos[1];
+          // Clamp progress to [0, 1]
+          const localProgress = Math.max(0, Math.min(1, segmentProgress));
 
-          // If this is a wraparound (last point to first point), check for large jumps
-          if (safeNextIndex === 0 && safeCurrentIndex === totalPoints - 1) {
-            // Ensure smooth transition from last to first point
-            const firstPos = coordinates[0];
-            const lastPos = coordinates[totalPoints - 1];
+          // Interpolate position
+          const x =
+            currentPos[0] + (nextPos[0] - currentPos[0]) * localProgress;
+          const y =
+            currentPos[1] + (nextPos[1] - currentPos[1]) * localProgress;
 
-            // Use actual first point position for smooth transition
-            deltaX = firstPos[0] - lastPos[0];
-            deltaY = firstPos[1] - lastPos[1];
-          }
-
-          const x = currentPos[0] + deltaX * localProgress;
-          const y = currentPos[1] + deltaY * localProgress;
-
-          // Smooth speed interpolation
+          // Interpolate speed
           const interpolatedSpeed =
             currentSpeed + (nextSpeed - currentSpeed) * localProgress;
 
           // Calculate car angle based on movement direction
+          const deltaX = nextPos[0] - currentPos[0];
+          const deltaY = nextPos[1] - currentPos[1];
           const angle = Math.atan2(deltaY, deltaX);
 
           newPositions[car_id] = {
@@ -1428,8 +1496,12 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       setCarPositions(newPositions);
       carPositionsRef.current = newPositions;
 
-      // Update animation progress for progress bar
-      animationProgress.current = progress;
+      // Update animation progress for progress bar based on first car's timing
+      if (carAnimationData.length > 0) {
+        const firstCarLapTime = carAnimationData[0].lapTimeMs;
+        const progress = (elapsed % firstCarLapTime) / firstCarLapTime;
+        animationProgress.current = progress;
+      }
 
       if (isRunning) {
         animationRef.current = requestAnimationFrame(animate);
@@ -1548,84 +1620,6 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     setIsSimulating(true);
     try {
       const trackPoints = internalTrackPoints;
-
-      // Ensure all cars have required fields for backend validation
-      const validatedCars = cars.map((car) => {
-        const validatedCar = {
-          // Required fields with fallbacks
-          id: car.id || `car_${Math.random().toString(36).substr(2, 9)}`,
-          mass: car.mass || 750,
-          length: car.length || 5.0,
-          width: car.width || 1.4,
-          max_steering_angle: car.max_steering_angle || 30,
-          max_acceleration: car.max_acceleration || 5,
-          drag_coefficient: car.drag_coefficient || 1.0,
-          lift_coefficient: car.lift_coefficient || 3.0,
-          team_name: car.team_name || "Team",
-          car_color: car.car_color || "#0000FF",
-          accent_color: car.accent_color || "#FFFFFF",
-          tire_compound: car.tire_compound || "medium",
-        };
-
-        // Add any additional properties from the original car
-        Object.keys(car).forEach((key) => {
-          if (!(key in validatedCar)) {
-            (validatedCar as any)[key] = (car as any)[key];
-          }
-        });
-
-        return validatedCar;
-      });
-
-      // 🔧 For preset tracks, convert track points to meters before sending to backend
-      let simulationTrackPoints: Point[];
-      let simulationTrackWidth: number;
-      let isPreset = false;
-
-      const originalTrackPoints = (window as any).originalTrackPoints;
-      const originalTrackWidth = (window as any).originalTrackWidth;
-
-      if (originalTrackPoints && originalTrackWidth) {
-        isPreset = true;
-        // Convert track points from coordinate units to meters for backend
-        const presetTrackLength = (window as any).presetTrackLength || 5278; // meters
-        let coordLength = 0;
-        for (let i = 0; i < originalTrackPoints.length - 1; i++) {
-          const p1 = originalTrackPoints[i];
-          const p2 = originalTrackPoints[i + 1];
-          const dist = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
-          coordLength += dist;
-        }
-        const coordScale = presetTrackLength / coordLength; // meters per coordinate unit
-
-        // Scale track points to meters for the backend (Kapania expects meters)
-        simulationTrackPoints = originalTrackPoints.map((p: Point) => ({
-          x: p.x * coordScale,
-          y: p.y * coordScale,
-        }));
-        simulationTrackWidth = originalTrackWidth; // Keep original width in meters
-
-        console.log(`[Simulation] PRESET TRACK - Converting to meters:`);
-        console.log(
-          `  Original points: ${originalTrackPoints.length}, width: ${originalTrackWidth}m`
-        );
-        console.log(`  Coordinate scale: ${coordScale.toFixed(6)} meters/unit`);
-        console.log(
-          `  First original point: {x: ${originalTrackPoints[0].x}, y: ${originalTrackPoints[0].y}} coord units`
-        );
-        console.log(
-          `  First converted point: {x: ${simulationTrackPoints[0].x.toFixed(
-            1
-          )}, y: ${simulationTrackPoints[0].y.toFixed(1)}} meters`
-        );
-      } else {
-        // Use current scaled data for hand-drawn tracks
-        simulationTrackPoints = trackPoints;
-        simulationTrackWidth = trackWidth;
-        console.log(`[Simulation] HAND-DRAWN TRACK - Using current data:`);
-        console.log(`  Points: ${trackPoints.length}, width: ${trackWidth}`);
-      }
-
       const requestData = {
         track_points: simulationTrackPoints.map((p: Point) => ({
           x: p.x,
@@ -1633,17 +1627,11 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
         })),
         width: simulationTrackWidth,
         friction: 0.7,
-        cars: validatedCars,
+        cars: cars,
         model: selectedModel,
       };
 
-      console.log("🔍 SIMULATION REQUEST DEBUG:");
-      console.log(`  Track type: ${isPreset ? "PRESET" : "HAND-DRAWN"}`);
-      console.log(`  Track points count: ${requestData.track_points.length}`);
-      console.log(`  First 3 points:`, requestData.track_points.slice(0, 3));
-      console.log(`  Track width: ${simulationTrackWidth.toFixed(2)}`);
-      console.log(`  Model: ${selectedModel}`);
-      console.log("Full request data:", requestData);
+      console.log("Sending simulation request:", requestData);
 
       const response = await fetch("http://localhost:8000/simulate", {
         method: "POST",
@@ -1822,8 +1810,8 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
 
   // Create realistic F1 car with proper proportions and features
   const createF1Car = (position: CarPosition, car: Car) => {
-    const carLength = 25; // F1 car length in pixels (increased from 19)
-    const carWidth = 6.0; // F1 car width in pixels (increased from 4.4)
+    const carLength = 19; // F1 car length in pixels (scaled from ~5m)
+    const carWidth = 4.4; // F1 car width in pixels (scaled from ~2m)
 
     // Get car colors
     const primaryColor = car.car_color || "#e11d48";
@@ -2262,7 +2250,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     }
 
     // Reset zoom to default
-    const defaultZoom = 1.0;
+    const defaultZoom = 1.8;
     setZoomLevel(defaultZoom);
     if (paper && paper.view) {
       paper.view.zoom = defaultZoom;
@@ -2296,7 +2284,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
   const handleZoomReset = useCallback(() => {
     if (!paper || !paper.view) return;
 
-    const defaultZoom = 1.0;
+    const defaultZoom = 1.8;
     setZoomLevel(defaultZoom);
     paper.view.zoom = defaultZoom;
     paper.view.center = paper.view.bounds.center;
@@ -2469,14 +2457,13 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     return length / 1000; // Convert to kilometers for display
   };
 
-  // Helper function to calculate track scaling information
-  const calculateTrackScaling = (
+  // Helper function to scale and center track points for canvas display
+  const scaleTrackToCanvas = (
     trackPoints: Point[],
     canvasWidth: number,
     canvasHeight: number
   ) => {
-    if (trackPoints.length === 0)
-      return { scaledPoints: trackPoints, scale: 1 };
+    if (trackPoints.length === 0) return trackPoints;
 
     // Find bounds of track points
     const minX = Math.min(...trackPoints.map((p) => p.x));
@@ -2488,8 +2475,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     const trackHeight = maxY - minY;
 
     // Ensure we have valid dimensions
-    if (trackWidth === 0 || trackHeight === 0)
-      return { scaledPoints: trackPoints, scale: 1 };
+    if (trackWidth === 0 || trackHeight === 0) return trackPoints;
 
     // Calculate scale to fit canvas with adaptive padding
     const minPadding = 40;
@@ -2501,18 +2487,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
 
     const scaleX = (canvasWidth - 2 * adaptivePadding) / trackWidth;
     const scaleY = (canvasHeight - 2 * adaptivePadding) / trackHeight;
-    let scale = Math.min(scaleX, scaleY);
-
-    // 🔧 Safety check: Ensure track is not too zoomed in or out
-    const minScale = 0.1; // Prevent extreme zoom out
-    const maxScale = 10.0; // Prevent extreme zoom in
-    scale = Math.max(minScale, Math.min(maxScale, scale));
-
-    console.log(
-      `[calculateTrackScaling] Canvas: ${canvasWidth}x${canvasHeight}, Track: ${trackWidth.toFixed(
-        1
-      )}x${trackHeight.toFixed(1)}, Scale: ${scale.toFixed(4)}`
-    );
+    const scale = Math.min(scaleX, scaleY);
 
     // Calculate centering offsets to center the track perfectly
     const scaledWidth = trackWidth * scale;
@@ -2521,7 +2496,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     const offsetY = (canvasHeight - scaledHeight) / 2 - minY * scale;
 
     // Scale and center points
-    const scaledPoints = trackPoints.map((point) => ({
+    return trackPoints.map((point) => ({
       x: point.x * scale + offsetX,
       y: point.y * scale + offsetY,
     }));
@@ -2541,7 +2516,9 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
 
   // Function to draw track from preset data (using same style as custom tracks)
   const drawPresetTrack = (trackPoints: Point[]) => {
-    console.log(`🎨 Drawing preset track with ${trackPoints.length} points`);
+    console.log(
+      `[drawPresetTrack] Starting to draw track with ${trackPoints.length} points`
+    );
     if (!paper || trackPoints.length === 0) return;
 
     // Get canvas dimensions
@@ -2554,21 +2531,12 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       `[drawPresetTrack] Canvas dimensions: ${canvasWidth}x${canvasHeight}`
     );
 
-    // Calculate scaling factor for track points
-    const scalingInfo = calculateTrackScaling(
+    // Scale track points to fit canvas
+    const scaledPoints = scaleTrackToCanvas(
       trackPoints,
       canvasWidth,
       canvasHeight
     );
-    const scaledPoints = scalingInfo.scaledPoints;
-
-    // 🔧 Mark as preset track - simulation will use original unscaled data
-    console.log(
-      `[drawPresetTrack] Canvas scale factor: ${scalingInfo.scale.toFixed(4)}`
-    );
-    (window as any).isPresetTrack = true;
-    // 🔧 Store the scaling info that was used for track display
-    (window as any).presetTrackScalingInfo = scalingInfo;
 
     // Clear existing paths more carefully
     try {
@@ -2658,13 +2626,6 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       setHasTrack(false);
       lastTrackSource.current = "none";
       lastTrackHash.current = "";
-
-      // 🔧 Reset preset track flags
-      (window as any).isPresetTrack = false;
-      (window as any).presetTrackLength = undefined;
-      (window as any).originalTrackPoints = undefined;
-      (window as any).originalTrackWidth = undefined;
-      (window as any).presetTrackScalingInfo = undefined;
     }
   }, [lines, paper, isDrawingTrack]); // FIXED: Removed internalTrackPoints from dependencies
 
