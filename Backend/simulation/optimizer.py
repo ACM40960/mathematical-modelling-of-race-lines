@@ -9,8 +9,8 @@ from schemas.track import Car
 from scipy.ndimage import gaussian_filter1d
 from enum import Enum
 
-# Import the new model classes
-from .algorithms.physics_model import PhysicsBasedModel, PhysicsBasedModelOptimized
+# Import the model classes
+from .algorithms.physics_model import PhysicsBasedModel
 from .algorithms.basic_model import BasicModel
 from .algorithms.kapania_model import KapaniaModel
 from .aerodynamics import aerodynamic_model, get_speed_dependent_coefficients
@@ -18,14 +18,12 @@ from .aerodynamics import aerodynamic_model, get_speed_dependent_coefficients
 class RacingLineModel(str, Enum):
     """Available racing line calculation models"""
     PHYSICS_BASED = "physics_based"
-    PHYSICS_OPTIMIZED = "physics_optimized"  # NEW: Optimized physics model
     BASIC = "basic"
     TWO_STEP_ALGORITHM = "two_step_algorithm"
 
 # Initialize model instances
 MODELS = {
     RacingLineModel.PHYSICS_BASED: PhysicsBasedModel(),
-    RacingLineModel.PHYSICS_OPTIMIZED: PhysicsBasedModelOptimized(),  # NEW: Optimized model
     RacingLineModel.BASIC: BasicModel(),
     RacingLineModel.TWO_STEP_ALGORITHM: KapaniaModel()
 }

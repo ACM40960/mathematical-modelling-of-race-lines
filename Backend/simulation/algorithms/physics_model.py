@@ -1,12 +1,14 @@
 """
-Clean Physics-Based Racing Line Model
-Based on Perantoni & Limebeer's optimal control research with lap time optimization
+Physics-Based Racing Line Model with Lap Time Optimization
+Based on Perantoni & Limebeer's optimal control research
 
 Mathematical Foundation:
 - Cornering Speed: v_max = √(μ × (mg + F_downforce) / (m × κ))
 - Aerodynamic Forces: F = 0.5 × ρ × v² × C × A  
 - Lap Time Optimization: minimize ∫(1/v) ds
 - Braking Distance: d = v² / (2a)
+- Path Optimization: Iterative improvement
+- Convergence: |T_new - T_old| < threshold
 """
 
 import numpy as np
@@ -18,32 +20,127 @@ from ..curvilinear_coordinates import create_curvilinear_system
 
 class PhysicsBasedModel(BaseRacingLineModel):
     """
-    Clean Physics-Based Racing Line Model
+    Physics-Based Racing Line Model with Lap Time Optimization
+    
+    Optimization Objective: minimize ∫(1/v) ds (total lap time)
     
     Core Equations:
     1. Cornering Speed: v_max = √(μ × N / (m × κ))
     2. Aerodynamics: F = 0.5 × ρ × v² × C × A
     3. Racing Line: Late apex strategy with physics constraints
+    4. Lap Time: T = ∫(1/v) ds
+    5. Path Optimization: Iterative improvement
     """
     
     def __init__(self):
         super().__init__(
             name="Physics-Based Model",
-            description="Clean physics model with vehicle dynamics",
-            track_usage="80%",
-            characteristics=["Research-based", "Clean", "Physics-accurate"]
+            description="Physics model with lap time optimization",
+            track_usage="85%",
+            characteristics=["Research-based", "Optimized", "Lap time minimization"]
         )
+        
+        # Optimization parameters
+        self.MAX_ITERATIONS = 4
+        self.CONVERGENCE_THRESHOLD = 0.15  # seconds
     
     def calculate_racing_line(self, track_points: np.ndarray, curvature: np.ndarray, 
                              track_width: float, car_params: dict = None, 
                              friction: float = 1.0) -> np.ndarray:
-        """Calculate racing line using physics equations"""
+        """
+        Calculate optimized racing line that minimizes lap time
         
-        print(f"\n🔬 PHYSICS MODEL: Starting calculation...")
+        Optimization Algorithm:
+        1. Calculate initial racing line using physics
+        2. Calculate lap time T = ∫(1/v) ds
+        3. Optimize path geometry
+        4. Repeat until convergence
+        """
         
-        # Extract car parameters
+        print(f"\n🔄 PHYSICS OPTIMIZATION: Starting lap time minimization...")
+        
+        # Input validation
+        if track_points is None or len(track_points) < 3:
+            raise ValueError("track_points must have at least 3 points")
+        if track_width <= 0:
+            raise ValueError("track_width must be positive")
+        if friction <= 0:
+            raise ValueError("friction must be positive")
+        
+        # Extract parameters
         params = self._extract_parameters(car_params)
         
+        # Initialize optimization
+        current_path = track_points.copy()
+        best_lap_time = float('inf')
+        best_path = current_path.copy()
+        prev_lap_time = float('inf')  # Initialize before loop
+        
+        try:
+            # Optimization loop
+            for iteration in range(self.MAX_ITERATIONS):
+                print(f"\n   Iteration {iteration + 1}/{self.MAX_ITERATIONS}:")
+                
+                # Calculate racing line for current path
+                print(f"      Calculating physics-based racing line...")
+                racing_line = self._calculate_single_pass_racing_line(
+                    current_path, curvature, track_width, params, friction
+                )
+                
+                # Calculate speed profile
+                print(f"      Calculating speed profile...")
+                speeds = self._calculate_optimized_speed_profile(racing_line, params, friction)
+                
+                # Validate arrays match
+                if len(speeds) != len(racing_line):
+                    print(f"      ⚠️ Array length mismatch, adjusting...")
+                    min_len = min(len(speeds), len(racing_line))
+                    speeds = speeds[:min_len]
+                    racing_line = racing_line[:min_len]
+                
+                # Calculate lap time (optimization objective)
+                lap_time = self._calculate_lap_time(speeds, racing_line)
+                print(f"      📊 Lap time: {lap_time:.2f}s")
+                
+                # Check for reasonable lap time bounds
+                if lap_time <= 0 or lap_time > 1000:
+                    print(f"      ⚠️ Invalid lap time: {lap_time}s, skipping iteration")
+                    continue
+                
+                # Check for improvement
+                if lap_time < best_lap_time:
+                    improvement = best_lap_time - lap_time
+                    best_lap_time = lap_time
+                    best_path = racing_line.copy()
+                    print(f"      🎯 New best! Improvement: {improvement:.2f}s")
+                else:
+                    print(f"      📈 No improvement")
+                
+                # Check convergence
+                if iteration > 0 and abs(prev_lap_time - lap_time) < self.CONVERGENCE_THRESHOLD:
+                    print(f"      ✅ Converged!")
+                    break
+                
+                # Optimize path for next iteration
+                if iteration < self.MAX_ITERATIONS - 1:
+                    print(f"      Optimizing path geometry...")
+                    current_path = self._optimize_path_geometry(racing_line, speeds, track_width)
+                
+                prev_lap_time = lap_time
+            
+        except Exception as e:
+            print(f"      ❌ Optimization error: {str(e)}")
+            # Return fallback result
+            return self._calculate_single_pass_racing_line(track_points, curvature, track_width, params, friction)
+        
+        print(f"\n🏁 OPTIMIZATION COMPLETED:")
+        print(f"   • Final lap time: {best_lap_time:.2f}s")
+        print(f"   • Iterations: {min(iteration + 1, self.MAX_ITERATIONS)}")
+        
+        return best_path
+    
+    def _calculate_single_pass_racing_line(self, track_points, curvature, track_width, params, friction):
+        """Calculate single-pass racing line using physics equations"""
         # Initialize curvilinear coordinate system
         coord_system = create_curvilinear_system(track_points, track_width / 2)
         
@@ -56,27 +153,27 @@ class PhysicsBasedModel(BaseRacingLineModel):
         # Apply offsets to get final racing line
         racing_line = self._apply_offsets(track_points, offsets)
         
-        print(f"✅ Physics calculation complete")
         return racing_line
     
     def _extract_parameters(self, car_params):
         """Extract and validate car parameters"""
         if car_params:
+            car_width = car_params.get('width', 1.4)  # Get width from frontend
             return {
-                'mass': car_params.get('mass', 1500.0),
-                'max_acceleration': car_params.get('max_acceleration', 5.0),
+                'mass': car_params.get('mass', 1500.0),  # kg - Match frontend default
+                'max_acceleration': car_params.get('max_acceleration', 5.0),  # m/s² - Match frontend default
                 'max_steering_angle': car_params.get('max_steering_angle', 30.0),
                 'drag_coefficient': car_params.get('drag_coefficient', 1.0),
                 'lift_coefficient': car_params.get('lift_coefficient', 3.0),
                 'car_length': car_params.get('length', 5.0),
-                'car_width': car_params.get('width', 1.4),
+                'car_width': car_width,
                 'frontal_area': car_params.get('effective_frontal_area', 
-                                             car_params.get('length', 5.0) * car_params.get('width', 1.4) * 0.7)
+                                             car_params.get('length', 5.0) * car_width * 0.7)
             }
         else:
             return {
-                'mass': 1500.0,
-                'max_acceleration': 5.0,
+                'mass': 1500.0,  # kg - Match frontend default
+                'max_acceleration': 5.0,  # m/s² - Match frontend default
                 'max_steering_angle': 30.0,
                 'drag_coefficient': 1.0,
                 'lift_coefficient': 3.0,
@@ -84,6 +181,11 @@ class PhysicsBasedModel(BaseRacingLineModel):
                 'car_width': 1.4,
                 'frontal_area': 4.9  # 5.0 * 1.4 * 0.7
             }
+    
+    def _calculate_optimized_speed_profile(self, racing_line, params, friction):
+        """Calculate optimized speed profile using physics equations"""
+        coord_system = create_curvilinear_system(racing_line, 10.0)  # Use racing line
+        return self._calculate_physics_speeds(coord_system, params, friction)
     
     def _calculate_physics_speeds(self, coord_system, params, friction):
         """
@@ -154,7 +256,7 @@ class PhysicsBasedModel(BaseRacingLineModel):
         
         Equilibrium: F_drive = F_drag
         """
-        # Maximum driving force: F = ma
+        # Maximum driving force: F = ma - FIXED: Use actual parameter from frontend
         max_drive_force = params['mass'] * params['max_acceleration']
         
         # Calculate drag-limited speed
@@ -283,98 +385,6 @@ class PhysicsBasedModel(BaseRacingLineModel):
                 racing_line[i] = track_points[i] + offsets[i] * perpendicular
         
         return racing_line
-
-
-class PhysicsBasedModelOptimized(PhysicsBasedModel):
-    """
-    Physics-Based Model with Lap Time Optimization
-    
-    Optimization Objective: minimize ∫(1/v) ds (total lap time)
-    
-    Additional Equations:
-    - Lap Time: T = ∫(1/v) ds
-    - Path Optimization: Iterative improvement
-    - Convergence: |T_new - T_old| < threshold
-    """
-    
-    def __init__(self):
-        super().__init__()
-        self.name = "Physics-Based Model (Optimized)"
-        self.description = "Physics model with lap time optimization"
-        self.characteristics = ["Research-based", "Optimized", "Lap time minimization"]
-        
-        # Optimization parameters
-        self.MAX_ITERATIONS = 4
-        self.CONVERGENCE_THRESHOLD = 0.15  # seconds
-    
-    def calculate_racing_line(self, track_points: np.ndarray, curvature: np.ndarray, 
-                             track_width: float, car_params: dict = None, 
-                             friction: float = 1.0) -> np.ndarray:
-        """
-        Calculate optimized racing line that minimizes lap time
-        
-        Optimization Algorithm:
-        1. Calculate initial racing line
-        2. Calculate lap time T = ∫(1/v) ds
-        3. Optimize path geometry
-        4. Repeat until convergence
-        """
-        
-        print(f"\n🔄 PHYSICS OPTIMIZATION: Starting lap time minimization...")
-        
-        # Extract parameters
-        params = self._extract_parameters(car_params)
-        
-        # Initialize optimization
-        current_path = track_points.copy()
-        best_lap_time = float('inf')
-        best_path = current_path.copy()
-        
-        # Optimization loop
-        for iteration in range(self.MAX_ITERATIONS):
-            print(f"\n   Iteration {iteration + 1}/{self.MAX_ITERATIONS}:")
-            
-            # Calculate racing line for current path
-            print(f"      Calculating physics-based racing line...")
-            racing_line = super().calculate_racing_line(
-                current_path, curvature, track_width, car_params, friction
-            )
-            
-            # Calculate speed profile
-            print(f"      Calculating speed profile...")
-            coord_system = create_curvilinear_system(racing_line, track_width / 2)
-            speeds = self._calculate_physics_speeds(coord_system, params, friction)
-            
-            # Calculate lap time (optimization objective)
-            lap_time = self._calculate_lap_time(speeds, racing_line)
-            print(f"      📊 Lap time: {lap_time:.2f}s")
-            
-            # Check for improvement
-            if lap_time < best_lap_time:
-                improvement = best_lap_time - lap_time
-                best_lap_time = lap_time
-                best_path = racing_line.copy()
-                print(f"      🎯 New best! Improvement: {improvement:.2f}s")
-            else:
-                print(f"      📈 No improvement")
-            
-            # Check convergence
-            if iteration > 0 and abs(prev_lap_time - lap_time) < self.CONVERGENCE_THRESHOLD:
-                print(f"      ✅ Converged!")
-                break
-            
-            # Optimize path for next iteration
-            if iteration < self.MAX_ITERATIONS - 1:
-                print(f"      Optimizing path geometry...")
-                current_path = self._optimize_path_geometry(racing_line, speeds, track_width)
-            
-            prev_lap_time = lap_time
-        
-        print(f"\n🏁 OPTIMIZATION COMPLETED:")
-        print(f"   • Final lap time: {best_lap_time:.2f}s")
-        print(f"   • Iterations: {min(iteration + 1, self.MAX_ITERATIONS)}")
-        
-        return best_path
     
     def _calculate_lap_time(self, speeds, racing_line):
         """
@@ -382,16 +392,20 @@ class PhysicsBasedModelOptimized(PhysicsBasedModel):
         
         This is the optimization objective function
         """
-        distances = self._calculate_distances(racing_line)
+        distances = self._calculate_distances_between_points(racing_line)
         lap_time = 0.0
         
         for i in range(len(distances)):
-            if speeds[i] > 0 and distances[i] > 0:
+            # More robust protection against division by zero
+            if speeds[i] > 1e-6 and distances[i] > 1e-6:
                 lap_time += distances[i] / speeds[i]  # time = distance / speed
+            else:
+                # Fallback for invalid data
+                lap_time += distances[i] / 10.0  # Use safe fallback speed
         
         return lap_time
     
-    def _calculate_distances(self, points):
+    def _calculate_distances_between_points(self, points):
         """Calculate distances between consecutive points"""
         distances = np.zeros(len(points))
         
