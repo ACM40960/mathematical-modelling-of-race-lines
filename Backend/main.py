@@ -178,6 +178,13 @@ async def get_models():
                     "characteristics": ["Research-based", "Aggressive", "Realistic"]
                 },
                 {
+                    "id": "physics_optimized",
+                    "name": "Physics-Based Model (Optimized)",
+                    "description": "Physics model with lap time optimization",
+                    "track_usage": "85%",
+                    "characteristics": ["Research-based", "Optimized", "Lap time minimization"]
+                },
+                {
                     "id": "basic",
                     "name": "Basic Model",
                     "description": "Simple geometric approach",
