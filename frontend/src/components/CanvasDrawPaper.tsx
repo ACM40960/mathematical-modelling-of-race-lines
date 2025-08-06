@@ -1318,11 +1318,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       if (coordinates && coordinates.length > 1) {
         // Find the car to get its accent color
         const car = cars.find((c) => c.id === car_id);
-        // Use bright colors for racing lines to ensure visibility
-        const racingLineColor =
-          car?.accent_color === "#000000" || car?.accent_color === "#FFFFFF"
-            ? "#FF0000" // Bright red for black/white cars
-            : car?.accent_color || "#FF0000"; // Fallback to red if car not found
+        const racingLineColor = car?.accent_color || "#000000"; // Fallback to black if car not found
 
         const racingLinePath = new paper.Path({
           segments: coordinates.map(
@@ -1336,8 +1332,8 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
           data: { type: "racing_line", car_id: car_id },
         });
         racingLinePath.smooth();
-        // Keep racing line on top for better visibility (don't send to back)
-        // racingLinePath.sendToBack();
+        // Send racing line to back so it appears behind the track
+        racingLinePath.sendToBack();
 
         console.log(
           `[Racing Line] Drew ${
@@ -1636,84 +1632,6 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     setIsSimulating(true);
     try {
       const trackPoints = internalTrackPoints;
-
-      // Ensure all cars have required fields for backend validation
-      const validatedCars = cars.map((car) => {
-        const validatedCar = {
-          // Required fields with fallbacks
-          id: car.id || `car_${Math.random().toString(36).substr(2, 9)}`,
-          mass: car.mass || 750,
-          length: car.length || 5.0,
-          width: car.width || 1.4,
-          max_steering_angle: car.max_steering_angle || 30,
-          max_acceleration: car.max_acceleration || 5,
-          drag_coefficient: car.drag_coefficient || 1.0,
-          lift_coefficient: car.lift_coefficient || 3.0,
-          team_name: car.team_name || "Team",
-          car_color: car.car_color || "#0000FF",
-          accent_color: car.accent_color || "#FFFFFF",
-          tire_compound: car.tire_compound || "medium",
-        };
-
-        // Add any additional properties from the original car
-        Object.keys(car).forEach((key) => {
-          if (!(key in validatedCar)) {
-            (validatedCar as any)[key] = (car as any)[key];
-          }
-        });
-
-        return validatedCar;
-      });
-
-      // 🔧 For preset tracks, convert track points to meters before sending to backend
-      let simulationTrackPoints: Point[];
-      let simulationTrackWidth: number;
-      let isPreset = false;
-
-      const originalTrackPoints = (window as any).originalTrackPoints;
-      const originalTrackWidth = (window as any).originalTrackWidth;
-
-      if (originalTrackPoints && originalTrackWidth) {
-        isPreset = true;
-        // Convert track points from coordinate units to meters for backend
-        const presetTrackLength = (window as any).presetTrackLength || 5278; // meters
-        let coordLength = 0;
-        for (let i = 0; i < originalTrackPoints.length - 1; i++) {
-          const p1 = originalTrackPoints[i];
-          const p2 = originalTrackPoints[i + 1];
-          const dist = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
-          coordLength += dist;
-        }
-        const coordScale = presetTrackLength / coordLength; // meters per coordinate unit
-
-        // Scale track points to meters for the backend (Kapania expects meters)
-        simulationTrackPoints = originalTrackPoints.map((p: Point) => ({
-          x: p.x * coordScale,
-          y: p.y * coordScale,
-        }));
-        simulationTrackWidth = originalTrackWidth; // Keep original width in meters
-
-        console.log(`[Simulation] PRESET TRACK - Converting to meters:`);
-        console.log(
-          `  Original points: ${originalTrackPoints.length}, width: ${originalTrackWidth}m`
-        );
-        console.log(`  Coordinate scale: ${coordScale.toFixed(6)} meters/unit`);
-        console.log(
-          `  First original point: {x: ${originalTrackPoints[0].x}, y: ${originalTrackPoints[0].y}} coord units`
-        );
-        console.log(
-          `  First converted point: {x: ${simulationTrackPoints[0].x.toFixed(
-            1
-          )}, y: ${simulationTrackPoints[0].y.toFixed(1)}} meters`
-        );
-      } else {
-        // Use current scaled data for hand-drawn tracks
-        simulationTrackPoints = trackPoints;
-        simulationTrackWidth = trackWidth;
-        console.log(`[Simulation] HAND-DRAWN TRACK - Using current data:`);
-        console.log(`  Points: ${trackPoints.length}, width: ${trackWidth}`);
-      }
-
       const requestData = {
         track_points: simulationTrackPoints.map((p: Point) => ({
           x: p.x,
@@ -1726,13 +1644,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
         model: selectedModel,
       };
 
-      console.log("🔍 SIMULATION REQUEST DEBUG:");
-      console.log(`  Track type: ${isPreset ? "PRESET" : "HAND-DRAWN"}`);
-      console.log(`  Track points count: ${requestData.track_points.length}`);
-      console.log(`  First 3 points:`, requestData.track_points.slice(0, 3));
-      console.log(`  Track width: ${simulationTrackWidth.toFixed(2)}`);
-      console.log(`  Model: ${selectedModel}`);
-      console.log("Full request data:", requestData);
+      console.log("Sending simulation request:", requestData);
 
       const response = await fetch("http://localhost:8000/simulate", {
         method: "POST",
@@ -2561,14 +2473,13 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     return length / 1000; // Convert to kilometers for display
   };
 
-  // Helper function to calculate track scaling information
-  const calculateTrackScaling = (
+  // Helper function to scale and center track points for canvas display
+  const scaleTrackToCanvas = (
     trackPoints: Point[],
     canvasWidth: number,
     canvasHeight: number
   ) => {
-    if (trackPoints.length === 0)
-      return { scaledPoints: trackPoints, scale: 1 };
+    if (trackPoints.length === 0) return trackPoints;
 
     // Find bounds of track points
     const minX = Math.min(...trackPoints.map((p) => p.x));
@@ -2580,8 +2491,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     const trackHeight = maxY - minY;
 
     // Ensure we have valid dimensions
-    if (trackWidth === 0 || trackHeight === 0)
-      return { scaledPoints: trackPoints, scale: 1 };
+    if (trackWidth === 0 || trackHeight === 0) return trackPoints;
 
     // Calculate scale to fit canvas with adaptive padding
     const minPadding = 40;
@@ -2593,18 +2503,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
 
     const scaleX = (canvasWidth - 2 * adaptivePadding) / trackWidth;
     const scaleY = (canvasHeight - 2 * adaptivePadding) / trackHeight;
-    let scale = Math.min(scaleX, scaleY);
-
-    // 🔧 Safety check: Ensure track is not too zoomed in or out
-    const minScale = 0.1; // Prevent extreme zoom out
-    const maxScale = 10.0; // Prevent extreme zoom in
-    scale = Math.max(minScale, Math.min(maxScale, scale));
-
-    console.log(
-      `[calculateTrackScaling] Canvas: ${canvasWidth}x${canvasHeight}, Track: ${trackWidth.toFixed(
-        1
-      )}x${trackHeight.toFixed(1)}, Scale: ${scale.toFixed(4)}`
-    );
+    const scale = Math.min(scaleX, scaleY);
 
     // Calculate centering offsets to center the track perfectly
     const scaledWidth = trackWidth * scale;
@@ -2613,7 +2512,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     const offsetY = (canvasHeight - scaledHeight) / 2 - minY * scale;
 
     // Scale and center points
-    const scaledPoints = trackPoints.map((point) => ({
+    return trackPoints.map((point) => ({
       x: point.x * scale + offsetX,
       y: point.y * scale + offsetY,
     }));
@@ -2633,7 +2532,9 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
 
   // Function to draw track from preset data (using same style as custom tracks)
   const drawPresetTrack = (trackPoints: Point[]) => {
-    console.log(`🎨 Drawing preset track with ${trackPoints.length} points`);
+    console.log(
+      `[drawPresetTrack] Starting to draw track with ${trackPoints.length} points`
+    );
     if (!paper || trackPoints.length === 0) return;
 
     // Get canvas dimensions
@@ -2646,21 +2547,12 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       `[drawPresetTrack] Canvas dimensions: ${canvasWidth}x${canvasHeight}`
     );
 
-    // Calculate scaling factor for track points
-    const scalingInfo = calculateTrackScaling(
+    // Scale track points to fit canvas
+    const scaledPoints = scaleTrackToCanvas(
       trackPoints,
       canvasWidth,
       canvasHeight
     );
-    const scaledPoints = scalingInfo.scaledPoints;
-
-    // 🔧 Mark as preset track - simulation will use original unscaled data
-    console.log(
-      `[drawPresetTrack] Canvas scale factor: ${scalingInfo.scale.toFixed(4)}`
-    );
-    (window as any).isPresetTrack = true;
-    // 🔧 Store the scaling info that was used for track display
-    (window as any).presetTrackScalingInfo = scalingInfo;
 
     // Clear existing paths more carefully
     try {
@@ -2750,13 +2642,6 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       setHasTrack(false);
       lastTrackSource.current = "none";
       lastTrackHash.current = "";
-
-      // 🔧 Reset preset track flags
-      (window as any).isPresetTrack = false;
-      (window as any).presetTrackLength = undefined;
-      (window as any).originalTrackPoints = undefined;
-      (window as any).originalTrackWidth = undefined;
-      (window as any).presetTrackScalingInfo = undefined;
     }
   }, [lines, paper, isDrawingTrack]); // FIXED: Removed internalTrackPoints from dependencies
 
