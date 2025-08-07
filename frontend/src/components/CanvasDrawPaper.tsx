@@ -9,7 +9,6 @@ import React, {
   useCallback,
 } from "react";
 import { Point, Car, Track } from "../types";
-import { Point, Car, Track } from "../types";
 import paper from "paper";
 
 interface SimulationResult {
