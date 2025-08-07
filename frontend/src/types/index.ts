@@ -13,9 +13,15 @@ export interface Car {
   yaw_inertia?: number;                    // Iz (kg·m²)
   front_axle_distance?: number;            // a (m) - distance from front axle to CG
   rear_axle_distance?: number;             // b (m) - distance from rear axle to CG  
-  front_cornering_stiffness?: number;      // CF (kN·rad⁻¹)
-  rear_cornering_stiffness?: number;       // CR (kN·rad⁻¹)
+  front_cornering_stiffness?: number;      // CF (N/rad)
+  rear_cornering_stiffness?: number;       // CR (N/rad)
   max_engine_force?: number;               // N
+  // F1 Aerodynamic & Performance Parameters
+  downforce_factor?: number;               // Aerodynamic downforce multiplier
+  max_straight_speed?: number;             // Maximum straight-line speed (m/s)
+  max_speed_limit?: number;                // Absolute maximum speed (m/s)
+  min_corner_speed?: number;               // Minimum corner speed (m/s)
+  brake_force_multiplier?: number;         // Brake force vs engine force ratio
   // Racing line model
   model?: string;
   // Customization options
