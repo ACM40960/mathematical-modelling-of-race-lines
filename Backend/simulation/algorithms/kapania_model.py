@@ -183,64 +183,121 @@ class KapaniaModel(BaseRacingLineModel):
         # Extract parameters
         mass = car_params['mass']
         max_engine_force = car_params['max_engine_force']
-        friction_coeff = car_params['friction_coefficient']
+        friction_coeff = friction  # Use the friction parameter passed to the method
         g = 9.81  # gravity
         
         print(f"           Pass 1: Maximum steady-state speeds")
         # Pass 1: Maximum steady-state speed (Equation 4 from paper)
-        # Ux(s) = sqrt(μg / |K(s)|)
+        # Enhanced with F1 aerodynamic effects and parameter sensitivity
         max_steady_speeds = np.zeros(n_points)
+        
+        # Extract cornering performance parameters
+        front_cs = car_params.get('front_cornering_stiffness', 80000.0)
+        rear_cs = car_params.get('rear_cornering_stiffness', 120000.0)
+        avg_cornering_stiffness = (front_cs + rear_cs) / 2.0
+        cornering_factor = avg_cornering_stiffness / 100000.0  # Normalize to typical F1 value
+        
+        # Extract configurable F1 performance parameters (with fallback defaults)
+        downforce_factor = car_params.get('downforce_factor', 3.0)
+        max_straight_speed = car_params.get('max_straight_speed', 85.0)  # m/s
+        max_speed_limit = car_params.get('max_speed_limit', 90.0)  # m/s
+        min_corner_speed = car_params.get('min_corner_speed', 15.0)  # m/s
+        
         for i in range(n_points):
             if abs(curvature[i]) > 1e-6:  # Avoid division by zero
-                max_steady_speeds[i] = np.sqrt((friction_coeff * g) / abs(curvature[i]))
+                # Base cornering speed from physics
+                base_speed = np.sqrt((friction_coeff * g) / abs(curvature[i]))
+                
+                # Apply configurable F1 aerodynamic and suspension effects
+                suspension_factor = cornering_factor * 1.2 + 0.3  # 30% base + 120% from stiffness
+                
+                max_steady_speeds[i] = base_speed * downforce_factor * suspension_factor
             else:
-                max_steady_speeds[i] = 100.0  # High speed for straight sections
+                # Straight line speed - configurable based on user settings
+                power_factor = max_engine_force / 15000.0  # Normalize to typical F1 power
+                max_steady_speeds[i] = max_straight_speed * (0.8 + 0.2 * power_factor)
             
-            # Apply realistic F1 speed limits
-            max_steady_speeds[i] = min(max_steady_speeds[i], 100.0)  # ~360 km/h max
-            max_steady_speeds[i] = max(max_steady_speeds[i], 5.0)    # ~18 km/h min
+            # Apply realistic F1 speed limits with enhanced parameter sensitivity
+            mass_factor = 798.0 / mass  # Lighter cars can go faster
+            max_steady_speeds[i] *= (0.90 + 0.10 * mass_factor)  # Increased mass sensitivity
+            
+            # Apply configurable speed limits
+            max_steady_speeds[i] = min(max_steady_speeds[i], max_speed_limit)
+            max_steady_speeds[i] = max(max_steady_speeds[i], min_corner_speed)
         
         print(f"           Pass 2: Forward integration (acceleration)")
-        # Pass 2: Forward integration (Equation 5 from paper)
-        # Ux(s+Δs) = sqrt(Ux(s)² + 2*Fx_max*Δs/m)
+        # Pass 2: Forward integration with enhanced parameter sensitivity
         forward_speeds = max_steady_speeds.copy()
+        
+        # Calculate power-to-weight ratio effect
+        power_to_weight = max_engine_force / mass
+        base_power_to_weight = 15000.0 / 798.0  # Reference F1 values
+        acceleration_factor = power_to_weight / base_power_to_weight
+        
         for i in range(1, n_points):
             if distances[i-1] > 0:
-                # Calculate available acceleration force
-                # Simplified: use max engine force minus some for cornering
+                # Calculate available acceleration force with parameter sensitivity
                 lateral_force_demand = mass * (forward_speeds[i-1]**2) * abs(curvature[i-1])
-                available_accel_force = max(max_engine_force - lateral_force_demand * 0.1, 0)
                 
-                # Forward integration
-                speed_squared = forward_speeds[i-1]**2 + (2 * available_accel_force * distances[i-1]) / mass
-                new_speed = np.sqrt(max(speed_squared, 25.0))  # Min 5 m/s
+                # Available force depends on engine power and current cornering demands
+                cornering_loss_factor = min(lateral_force_demand / (mass * 50.0), 0.3)  # Max 30% loss
+                available_accel_force = max_engine_force * (1.0 - cornering_loss_factor)
+                
+                # Apply acceleration factor for different car configurations
+                effective_force = available_accel_force * acceleration_factor
+                
+                # Forward integration with realistic acceleration
+                speed_squared = forward_speeds[i-1]**2 + (2 * effective_force * distances[i-1]) / mass
+                min_speed_squared = min_corner_speed ** 2
+                new_speed = np.sqrt(max(speed_squared, min_speed_squared))
                 
                 # Take minimum with steady-state limit
                 forward_speeds[i] = min(new_speed, max_steady_speeds[i])
         
         print(f"           Pass 3: Backward integration (braking)")
-        # Pass 3: Backward integration (Equation 6 from paper)  
-        # Ux(s-Δs) = sqrt(Ux(s)² - 2*Fx_max*Δs/m)
+        # Pass 3: Backward integration with enhanced braking model
         final_speeds = forward_speeds.copy()
+        
+        # Extract yaw inertia for braking stability calculation
+        yaw_inertia = car_params.get('yaw_inertia', 1200.0)
+        stability_factor = 1200.0 / yaw_inertia  # Lower inertia = better braking stability
+        
+        # Extract configurable brake performance
+        brake_force_multiplier = car_params.get('brake_force_multiplier', 3.0)
+        
         for i in range(n_points - 2, -1, -1):
             if distances[i] > 0:
-                # Calculate available braking force (higher than engine force)
-                max_braking_force = max_engine_force * 2.5  # Brakes are stronger than engine
-                lateral_force_demand = mass * (final_speeds[i+1]**2) * abs(curvature[i+1])
-                available_brake_force = max(max_braking_force - lateral_force_demand * 0.1, 0)
+                # Calculate available braking force with parameter sensitivity
+                # Base braking force - configurable multiplier
+                base_braking_force = max_engine_force * brake_force_multiplier
                 
-                # Backward integration
+                # Mass effect on braking (heavier cars need more distance)
+                mass_braking_factor = 798.0 / mass  # Lighter cars brake better
+                
+                # Yaw inertia effect (lower inertia = more stable under braking)
+                stability_braking_factor = stability_factor * 0.3 + 0.7  # 70% base + 30% from stability
+                
+                # Cornering demand reduces braking effectiveness
+                lateral_force_demand = mass * (final_speeds[i+1]**2) * abs(curvature[i+1])
+                cornering_braking_loss = min(lateral_force_demand / (mass * 30.0), 0.4)  # Max 40% loss
+                
+                # Total available braking force
+                available_brake_force = (base_braking_force * mass_braking_factor * 
+                                       stability_braking_factor * (1.0 - cornering_braking_loss))
+                
+                # Backward integration with enhanced braking model
                 speed_squared = final_speeds[i+1]**2 - (2 * available_brake_force * distances[i]) / mass
-                new_speed = np.sqrt(max(speed_squared, 25.0))  # Min 5 m/s
+                min_speed_squared = min_corner_speed ** 2
+                new_speed = np.sqrt(max(speed_squared, min_speed_squared))
                 
                 # Take minimum with forward integration result
                 final_speeds[i] = min(new_speed, forward_speeds[i])
         
         # Apply smoothing to avoid unrealistic speed changes
-        final_speeds = gaussian_filter1d(final_speeds, sigma=1.0)
+        final_speeds = gaussian_filter1d(final_speeds, sigma=0.8)
         
-        # Ensure reasonable speed range
-        final_speeds = np.clip(final_speeds, 5.0, 100.0)
+        # Ensure reasonable F1 speed range using configurable limits
+        final_speeds = np.clip(final_speeds, min_corner_speed, max_speed_limit)
         
         # Calculate lap time
         lap_time = self._calculate_lap_time(final_speeds, distances)
@@ -288,11 +345,22 @@ class KapaniaModel(BaseRacingLineModel):
         return distances
     
     def _calculate_lap_time(self, speeds: np.ndarray, distances: np.ndarray) -> float:
-        """Calculate total lap time from speed profile and distances"""
+        """Calculate total lap time from speed profile and distances with improved accuracy"""
         lap_time = 0.0
+        
         for i in range(len(distances) - 1):
-            if speeds[i] > 0 and distances[i] > 0:
-                lap_time += distances[i] / speeds[i]
+            if distances[i] > 0:
+                # Use average speed between consecutive points for more accurate time calculation
+                current_speed = max(speeds[i], 5.0)  # Ensure minimum speed
+                next_speed = max(speeds[i + 1] if i + 1 < len(speeds) else speeds[i], 5.0)
+                
+                # Average speed for this segment
+                avg_speed = (current_speed + next_speed) / 2.0
+                
+                # Time for this segment
+                segment_time = distances[i] / avg_speed
+                lap_time += segment_time
+        
         return lap_time
     
     def _convex_path_optimization(self, current_path: np.ndarray, speed_profile: np.ndarray,
