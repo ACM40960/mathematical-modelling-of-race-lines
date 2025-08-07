@@ -217,28 +217,80 @@ const CarControl: React.FC<CarControlProps> = ({
       .substr(2, 5)}`;
     const teamNumber = cars.length + 1;
 
+    // Create varied car configurations for better UX with Kapania model
+    const carVariations = [
+      // Car 1: Balanced Setup (Default F1)
+      {
+        mass: 798,
+        yaw_inertia: 1200,
+        front_cornering_stiffness: 80000,
+        rear_cornering_stiffness: 120000,
+        max_engine_force: 15000,
+        downforce_factor: 3.0,
+        max_straight_speed: 85,
+        brake_force_multiplier: 3.0,
+        tire_compound: "medium" as const,
+        description: "Balanced",
+      },
+      // Car 2: High Downforce Setup (Slower but better cornering)
+      {
+        mass: 820,
+        yaw_inertia: 1300,
+        front_cornering_stiffness: 95000,
+        rear_cornering_stiffness: 140000,
+        max_engine_force: 14000,
+        downforce_factor: 3.8,
+        max_straight_speed: 78,
+        brake_force_multiplier: 3.5,
+        tire_compound: "soft" as const,
+        description: "High Downforce",
+      },
+      // Car 3: Low Downforce Setup (Faster but less cornering)
+      {
+        mass: 780,
+        yaw_inertia: 1100,
+        front_cornering_stiffness: 70000,
+        rear_cornering_stiffness: 100000,
+        max_engine_force: 16500,
+        downforce_factor: 2.2,
+        max_straight_speed: 92,
+        brake_force_multiplier: 2.7,
+        tire_compound: "hard" as const,
+        description: "Low Downforce",
+      },
+    ];
+
+    // Select variation based on car index, or use balanced if more than 3 cars
+    const variation =
+      carVariations[newCarIndex % carVariations.length] || carVariations[0];
+
     const newCar: Car = {
       id: uniqueId,
-      team_name: `Team ${teamNumber}`,
+      team_name: `${colorSet.name} (${variation.description})`,
       car_color: colorSet.primary,
       accent_color: colorSet.accent,
-      mass: validationRules.mass.default,
+      mass: variation.mass,
       length: validationRules.length.default,
       width: validationRules.width.default,
       max_steering_angle: validationRules.max_steering_angle.default,
       max_acceleration: validationRules.max_acceleration.default,
       drag_coefficient: validationRules.drag_coefficient.default,
       lift_coefficient: validationRules.lift_coefficient.default,
-      // Kapania Two Step Algorithm parameters
-      yaw_inertia: validationRules.yaw_inertia.default,
+      // Kapania Two Step Algorithm parameters - Varied for each car
+      yaw_inertia: variation.yaw_inertia,
       front_axle_distance: validationRules.front_axle_distance.default,
       rear_axle_distance: validationRules.rear_axle_distance.default,
-      front_cornering_stiffness:
-        validationRules.front_cornering_stiffness.default,
-      rear_cornering_stiffness:
-        validationRules.rear_cornering_stiffness.default,
-      max_engine_force: validationRules.max_engine_force.default,
-      tire_compound: "medium",
+      front_cornering_stiffness: variation.front_cornering_stiffness,
+      rear_cornering_stiffness: variation.rear_cornering_stiffness,
+      max_engine_force: variation.max_engine_force,
+      // F1 Aerodynamic & Performance Parameters - Varied
+      downforce_factor: variation.downforce_factor,
+      max_straight_speed: variation.max_straight_speed,
+      max_speed_limit: validationRules.max_speed_limit.default,
+      min_corner_speed: validationRules.min_corner_speed.default,
+      brake_force_multiplier: variation.brake_force_multiplier,
+      effective_frontal_area: validationRules.effective_frontal_area.default,
+      tire_compound: variation.tire_compound,
     };
     setCars([...cars, newCar]);
   };

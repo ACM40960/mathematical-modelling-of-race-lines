@@ -57,7 +57,7 @@ class PhysicsBasedModel(BaseRacingLineModel):
         4. Repeat until convergence
         """
         
-        print(f"\n🔄 PHYSICS OPTIMIZATION: Starting lap time minimization...")
+        print(f"\nPHYSICS OPTIMIZATION: Starting lap time minimization...")
         
         # Input validation
         if track_points is None or len(track_points) < 3:
@@ -133,7 +133,7 @@ class PhysicsBasedModel(BaseRacingLineModel):
             # Return fallback result
             return self._calculate_single_pass_racing_line(track_points, curvature, track_width, params, friction)
         
-        print(f"\n🏁 OPTIMIZATION COMPLETED:")
+        print(f"\nOPTIMIZATION COMPLETED:")
         print(f"   • Final lap time: {best_lap_time:.2f}s")
         print(f"   • Iterations: {min(iteration + 1, self.MAX_ITERATIONS)}")
         

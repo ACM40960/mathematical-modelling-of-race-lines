@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import TrackControl from "@/components/TrackControl";
 import CarControl from "@/components/CarControl";
 import Header from "@/components/Header";
-import Link from "next/link";
 import { Track, Car, Point, SimulationResult, TrackPreset } from "@/types";
 import dynamic from "next/dynamic";
 import {
@@ -82,7 +81,7 @@ export default function TrackDesigner() {
     setSelectedModel(loadedModel);
 
     console.log(
-      "🏁 Track Designer loaded with saved data (lines loading disabled to prevent random graphs)"
+      "Track Designer loaded with saved data (lines loading disabled to prevent random graphs)"
     );
   }, []);
 
@@ -122,7 +121,7 @@ export default function TrackDesigner() {
   // Handle navigation issue: Clear canvas state when no track but cars are loaded
   useEffect(() => {
     if (lines.length === 0 && cars.length > 0 && simulationResults.length > 0) {
-      console.log("🔄Navigation detected: Clearing stale simulation results");
+      console.log("Navigation detected: Clearing stale simulation results");
       // Only clear simulation results if they exist and we have no track
       setSimulationResults([]);
     }
@@ -130,7 +129,7 @@ export default function TrackDesigner() {
 
   // Listen for storage changes from other windows
   useStorageListener((key) => {
-    console.log("🔄 Storage update received:", key);
+    console.log("Storage update received:", key);
     // We could update state here if needed, but for track designer
     // we primarily push data, not receive it
   });
@@ -172,7 +171,7 @@ export default function TrackDesigner() {
 
   // Handle track selection from Header
   const handleTrackSelect = (trackPreset: TrackPreset) => {
-    console.log("🏁 Loading preset track:", trackPreset.name);
+    console.log("Loading preset track:", trackPreset.name);
 
     // Set loading flag to prevent clearing selectedTrackName
     setIsLoadingPreset(true);
@@ -241,31 +240,7 @@ export default function TrackDesigner() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header with navigation */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="flex items-center justify-between px-4 py-4">
-          <div className="flex items-center space-x-4">
-            <Link
-              href="/"
-              className="text-blue-600 hover:text-blue-800 transition-colors"
-            >
-              ← Back to Home
-            </Link>
-            <div className="h-6 w-px bg-gray-300"></div>
-            <h1 className="text-xl font-bold text-gray-900">
-              🏁 Track Designer
-            </h1>
-          </div>
-          <Link
-            href="/parameter-analysis"
-            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors"
-          >
-            🔬 Open Parameter Analysis
-          </Link>
-        </div>
-      </div>
-
+    <div className="h-screen bg-gray-50 flex flex-col">
       {/* Header with integrated track selection */}
       <Header
         selectedTrackName={selectedTrackName}
@@ -273,62 +248,60 @@ export default function TrackDesigner() {
         onCustomTrack={handleCustomTrack}
       />
 
-      {/* Main Content */}
-      <div className="h-[calc(100vh-128px)]">
-        <div className="flex h-full">
-          {/* Main Canvas Area */}
-          <div className="flex-1 p-4">
-            <div className="w-full h-full bg-white rounded-lg shadow-sm border border-gray-200">
-              <CanvasDrawPaper
-                lines={lines}
-                setLines={setLines}
-                handleClear={handleClear}
-                trackWidth={trackWidth}
-                onTrackUpdate={handleTrackUpdate}
-                onTrackLengthChange={handleTrackLengthChange}
-                cars={cars}
-                simulationResults={simulationResults}
-                onSimulationResults={setSimulationResults}
-                selectedModel={selectedModel}
-              />
-            </div>
-          </div>
-
-          {/* Right Sidebar */}
-          <div className="w-80 bg-white border-l border-gray-200 p-4 space-y-4 overflow-y-auto">
-            {/* Track Controls */}
-            <TrackControl
-              trackLength={trackLength}
-              friction={friction}
-              onFrictionChange={handleFrictionChange}
-            />
-
-            {/* Car Controls */}
-            <CarControl
+      {/* Main Content - Takes remaining space */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Main Canvas Area */}
+        <div className="flex-1 p-4">
+          <div className="w-full h-full bg-white rounded-lg shadow-sm border border-gray-200">
+            <CanvasDrawPaper
+              lines={lines}
+              setLines={setLines}
+              handleClear={handleClear}
+              trackWidth={trackWidth}
+              onTrackUpdate={handleTrackUpdate}
+              onTrackLengthChange={handleTrackLengthChange}
               cars={cars}
-              setCars={handleCarsUpdate}
-              track={track}
+              simulationResults={simulationResults}
+              onSimulationResults={setSimulationResults}
               selectedModel={selectedModel}
-              setSelectedModel={setSelectedModel}
             />
-
-            {/* Results Display */}
-            {simulationResults.length > 0 && (
-              <div className="p-4 border border-gray-300 rounded">
-                <h3 className="font-semibold text-gray-800 mb-3">Results</h3>
-                {simulationResults.map((result, index) => (
-                  <div
-                    key={index}
-                    className="mb-2 p-2 bg-gray-50 rounded text-sm"
-                  >
-                    <div className="font-medium">Car {index + 1}</div>
-                    <div>Lap Time: {result.lap_time.toFixed(3)}s</div>
-                    <div>Points: {result.coordinates.length}</div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
+        </div>
+
+        {/* Right Sidebar */}
+        <div className="w-80 bg-white border-l border-gray-200 p-4 space-y-4 overflow-y-auto">
+          {/* Track Controls */}
+          <TrackControl
+            trackLength={trackLength}
+            friction={friction}
+            onFrictionChange={handleFrictionChange}
+          />
+
+          {/* Car Controls */}
+          <CarControl
+            cars={cars}
+            setCars={handleCarsUpdate}
+            track={track}
+            selectedModel={selectedModel}
+            setSelectedModel={setSelectedModel}
+          />
+
+          {/* Results Display */}
+          {simulationResults.length > 0 && (
+            <div className="p-4 border border-gray-300 rounded">
+              <h3 className="font-semibold text-gray-800 mb-3">Results</h3>
+              {simulationResults.map((result, index) => (
+                <div
+                  key={index}
+                  className="mb-2 p-2 bg-gray-50 rounded text-sm"
+                >
+                  <div className="font-medium">Car {index + 1}</div>
+                  <div>Lap Time: {result.lap_time.toFixed(3)}s</div>
+                  <div>Points: {result.coordinates.length}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
