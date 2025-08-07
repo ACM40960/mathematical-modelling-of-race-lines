@@ -41,7 +41,7 @@ class KapaniaModel(BaseRacingLineModel):
         self.HARDCODED_TRACK_WIDTH = 20.0  # meters (as requested)
         self.HARDCODED_DISCRETIZATION_STEP = 0.1  # discretization step
         
-        print(f"✅ {self.name} initialized with hardcoded parameters:")
+        print(f"{self.name} initialized with hardcoded parameters:")
         print(f"   • Track Width: {self.HARDCODED_TRACK_WIDTH}m")
         print(f"   • Discretization: {self.HARDCODED_DISCRETIZATION_STEP}")
         print(f"   • Max Iterations: {self.MAX_ITERATIONS}")
@@ -61,14 +61,14 @@ class KapaniaModel(BaseRacingLineModel):
         Returns:
             Array of (x, y) coordinates defining the optimal racing line
         """
-        print(f"\n🏎️  KAPANIA TWO STEP ALGORITHM STARTING:")
+        print(f"\nKAPANIA TWO STEP ALGORITHM STARTING:")
         print(f"   • Track points: {len(track_points)}")
         print(f"   • Using hardcoded track width: {self.HARDCODED_TRACK_WIDTH}m")
         print(f"   • Friction coefficient: {friction}")
         
         # Validate inputs
         if len(track_points) < 3:
-            print("❌ Insufficient track points for Kapania algorithm")
+            print("ERROR: Insufficient track points for Kapania algorithm")
             return track_points
             
         # Extract and validate Kapania-specific car parameters
@@ -80,7 +80,7 @@ class KapaniaModel(BaseRacingLineModel):
         best_path = current_path.copy()
         best_lap_time = float('inf')
         
-        print(f"\n🔄 Starting iterative optimization:")
+        print(f"\nStarting iterative optimization:")
         
         # Iterative two-step process
         for iteration in range(self.MAX_ITERATIONS):
@@ -91,21 +91,21 @@ class KapaniaModel(BaseRacingLineModel):
             speed_profile, current_lap_time = self._forward_backward_integration(
                 current_path, kapania_params, friction
             )
-            print(f"      ✅ Speed profile calculated (lap time: {current_lap_time:.2f}s)")
+            print(f"      Speed profile calculated (lap time: {current_lap_time:.2f}s)")
             
             # Check if this is the best lap time so far
             if current_lap_time < best_lap_time:
                 lap_time_improvement = best_lap_time - current_lap_time
                 best_lap_time = current_lap_time
                 best_path = current_path.copy()
-                print(f"      🎯 New best lap time! Improvement: {lap_time_improvement:.2f}s")
+                print(f"      New best lap time! Improvement: {lap_time_improvement:.2f}s")
             else:
                 lap_time_improvement = best_lap_time - current_lap_time
-                print(f"      📊 Lap time: {current_lap_time:.2f}s (no improvement)")
+                print(f"      Lap time: {current_lap_time:.2f}s (no improvement)")
             
             # Check convergence
             if iteration > 0 and abs(lap_time_improvement) < self.CONVERGENCE_THRESHOLD:
-                print(f"      ✅ Converged after {iteration + 1} iterations!")
+                print(f"      Converged after {iteration + 1} iterations!")
                 break
             
             # Step 2: Optimize path given speed profile (only if not converged)
@@ -114,10 +114,10 @@ class KapaniaModel(BaseRacingLineModel):
                 new_path = self._convex_path_optimization(
                     current_path, speed_profile, kapania_params, friction
                 )
-                print(f"      ✅ Path optimized")
+                print(f"      Path optimized")
                 current_path = new_path
         
-        print(f"\n🏁 KAPANIA ALGORITHM COMPLETED:")
+        print(f"\nKAPANIA ALGORITHM COMPLETED:")
         print(f"   • Final lap time: {best_lap_time:.2f}s")
         print(f"   • Iterations used: {min(iteration + 1, self.MAX_ITERATIONS)}")
         print(f"   • Track usage: {self.track_usage}")
@@ -127,7 +127,7 @@ class KapaniaModel(BaseRacingLineModel):
     def _extract_kapania_parameters(self, car_params: dict) -> dict:
         """Extract and validate Kapania-specific parameters from car_params"""
         if not car_params:
-            print("   ⚠️  No car parameters provided, using defaults")
+            print("   WARNING: No car parameters provided, using defaults")
             car_params = {}
         
         # Extract Kapania-specific parameters with defaults from Table 1 in paper
@@ -302,8 +302,8 @@ class KapaniaModel(BaseRacingLineModel):
         # Calculate lap time
         lap_time = self._calculate_lap_time(final_speeds, distances)
         
-        print(f"           ✅ Speed profile: {final_speeds.min():.1f}-{final_speeds.max():.1f} m/s")
-        print(f"           ✅ Lap time: {lap_time:.2f}s")
+        print(f"           Speed profile: {final_speeds.min():.1f}-{final_speeds.max():.1f} m/s")
+        print(f"           Lap time: {lap_time:.2f}s")
         
         return final_speeds, lap_time
     
@@ -422,7 +422,7 @@ class KapaniaModel(BaseRacingLineModel):
         new_curvature = self._calculate_curvature_from_points(optimized_path)
         curvature_reduction = np.mean(np.abs(current_curvature)) - np.mean(np.abs(new_curvature))
         
-        print(f"           ✅ Curvature reduced by {curvature_reduction:.4f} (lower is better)")
+        print(f"           Curvature reduced by {curvature_reduction:.4f} (lower is better)")
         
         return optimized_path
     

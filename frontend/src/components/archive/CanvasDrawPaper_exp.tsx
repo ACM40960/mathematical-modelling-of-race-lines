@@ -8,7 +8,7 @@ import React, {
   SetStateAction,
   useCallback,
 } from "react";
-import { Point, Car, Track } from "../types";
+import { Point, Car, Track } from "../../types";
 import paper from "paper";
 
 interface SimulationResult {
@@ -1253,9 +1253,15 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     const carAnimationData = results.optimal_lines.map((result: any) => {
       const { car_id, coordinates, speeds, lap_time } = result;
       const totalPoints = coordinates.length;
-      
+
       if (totalPoints < 2 || !speeds || speeds.length === 0) {
-        return { car_id, cumulativeTimes: [], lapTimeMs: 15000, coordinates, speeds: [] };
+        return {
+          car_id,
+          cumulativeTimes: [],
+          lapTimeMs: 15000,
+          coordinates,
+          speeds: [],
+        };
       }
 
       // Calculate distance between consecutive points
@@ -1275,18 +1281,23 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       for (let i = 0; i < distances.length; i++) {
         const speed = speeds[i] || 10; // Fallback speed
         const segmentTime = distances[i] / speed; // time = distance / speed
-        cumulativeTimes.push(cumulativeTimes[cumulativeTimes.length - 1] + segmentTime);
+        cumulativeTimes.push(
+          cumulativeTimes[cumulativeTimes.length - 1] + segmentTime
+        );
       }
 
       // Use actual lap time from simulation, with fallback
-      const lapTimeMs = (lap_time && lap_time > 0 ? lap_time : cumulativeTimes[cumulativeTimes.length - 1]) * 1000;
-      
+      const lapTimeMs =
+        (lap_time && lap_time > 0
+          ? lap_time
+          : cumulativeTimes[cumulativeTimes.length - 1]) * 1000;
+
       return {
         car_id,
         cumulativeTimes,
         lapTimeMs,
         coordinates,
-        speeds
+        speeds,
       };
     });
 
@@ -1303,18 +1314,22 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       const newPositions: Record<string, CarPosition> = {};
 
       carAnimationData.forEach((carData: any) => {
-        const { car_id, cumulativeTimes, lapTimeMs, coordinates, speeds } = carData;
+        const { car_id, cumulativeTimes, lapTimeMs, coordinates, speeds } =
+          carData;
         const totalPoints = coordinates.length;
 
         if (totalPoints < 2) return;
 
         // Calculate current time position in the lap (with looping)
         const currentLapTime = elapsed % lapTimeMs;
-        
+
         // Find which segment the car is currently in based on cumulative time
         let segmentIndex = 0;
         for (let i = 0; i < cumulativeTimes.length - 1; i++) {
-          if (currentLapTime >= cumulativeTimes[i] * 1000 && currentLapTime < cumulativeTimes[i + 1] * 1000) {
+          if (
+            currentLapTime >= cumulativeTimes[i] * 1000 &&
+            currentLapTime < cumulativeTimes[i + 1] * 1000
+          ) {
             segmentIndex = i;
             break;
           }
@@ -1323,7 +1338,7 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
         // Handle wraparound to prevent index out of bounds
         const currentIndex = segmentIndex % totalPoints;
         const nextIndex = (segmentIndex + 1) % totalPoints;
-        
+
         const currentPos = coordinates[currentIndex];
         const nextPos = coordinates[nextIndex];
         const currentSpeed = speeds[currentIndex] || 10;
@@ -1332,16 +1347,20 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
           // Calculate how far along this segment we are based on time
           const segmentStartTime = cumulativeTimes[segmentIndex] * 1000;
           const segmentEndTime = cumulativeTimes[segmentIndex + 1] * 1000;
-          const segmentProgress = segmentEndTime > segmentStartTime 
-            ? (currentLapTime - segmentStartTime) / (segmentEndTime - segmentStartTime)
-            : 0;
-          
+          const segmentProgress =
+            segmentEndTime > segmentStartTime
+              ? (currentLapTime - segmentStartTime) /
+                (segmentEndTime - segmentStartTime)
+              : 0;
+
           // Clamp progress to [0, 1]
           const localProgress = Math.max(0, Math.min(1, segmentProgress));
-          
+
           // Interpolate position
-          const x = currentPos[0] + (nextPos[0] - currentPos[0]) * localProgress;
-          const y = currentPos[1] + (nextPos[1] - currentPos[1]) * localProgress;
+          const x =
+            currentPos[0] + (nextPos[0] - currentPos[0]) * localProgress;
+          const y =
+            currentPos[1] + (nextPos[1] - currentPos[1]) * localProgress;
 
           // Calculate car angle based on movement direction
           const deltaX = nextPos[0] - currentPos[0];
