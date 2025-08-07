@@ -172,10 +172,9 @@ async def get_models():
                 {
                     "id": "physics_based",
                     "name": "Physics-Based Model",
-                    "description": "Based on research paper with vehicle dynamics",
-                    # this factor essentially describes how aggressive the car is when at corners
-                    "track_usage": "80%", 
-                    "characteristics": ["Research-based", "Aggressive", "Realistic"]
+                    "description": "Physics model with lap time optimization",
+                    "track_usage": "85%",
+                    "characteristics": ["Research-based", "Optimized", "Lap time minimization"]
                 },
                 {
                     "id": "basic",

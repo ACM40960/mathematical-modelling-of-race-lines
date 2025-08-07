@@ -1249,8 +1249,48 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     // Restore original layer
     originalLayer.activate();
 
+    // Calculate physics-based animation timing for each car
+    const carAnimationData = results.optimal_lines.map((result: any) => {
+      const { car_id, coordinates, speeds, lap_time } = result;
+      const totalPoints = coordinates.length;
+      
+      if (totalPoints < 2 || !speeds || speeds.length === 0) {
+        return { car_id, cumulativeTimes: [], lapTimeMs: 15000, coordinates, speeds: [] };
+      }
+
+      // Calculate distance between consecutive points
+      const distances = [];
+      for (let i = 0; i < totalPoints - 1; i++) {
+        const dx = coordinates[i + 1][0] - coordinates[i][0];
+        const dy = coordinates[i + 1][1] - coordinates[i][1];
+        distances.push(Math.sqrt(dx * dx + dy * dy));
+      }
+      // Close the loop - distance from last point back to first
+      const dx = coordinates[0][0] - coordinates[totalPoints - 1][0];
+      const dy = coordinates[0][1] - coordinates[totalPoints - 1][1];
+      distances.push(Math.sqrt(dx * dx + dy * dy));
+
+      // Calculate cumulative time for each segment based on speeds
+      const cumulativeTimes = [0]; // Start at time 0
+      for (let i = 0; i < distances.length; i++) {
+        const speed = speeds[i] || 10; // Fallback speed
+        const segmentTime = distances[i] / speed; // time = distance / speed
+        cumulativeTimes.push(cumulativeTimes[cumulativeTimes.length - 1] + segmentTime);
+      }
+
+      // Use actual lap time from simulation, with fallback
+      const lapTimeMs = (lap_time && lap_time > 0 ? lap_time : cumulativeTimes[cumulativeTimes.length - 1]) * 1000;
+      
+      return {
+        car_id,
+        cumulativeTimes,
+        lapTimeMs,
+        coordinates,
+        speeds
+      };
+    });
+
     let startTime: number | null = null;
-    const duration = 15000; // 15 seconds per lap for smoother viewing
     let isRunning = true;
 
     const animate = (timestamp: number) => {
@@ -1258,37 +1298,55 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
 
       if (!startTime) startTime = timestamp;
       const elapsed = timestamp - startTime;
-      // Continuous loop - no visible restart
-      const progress = (elapsed % duration) / duration;
 
-      // Update car positions for smooth interpolation
+      // Update car positions based on actual physics timing
       const newPositions: Record<string, CarPosition> = {};
 
-      results.optimal_lines.forEach((result: any) => {
-        const { car_id, coordinates, speeds } = result;
+      carAnimationData.forEach((carData: any) => {
+        const { car_id, cumulativeTimes, lapTimeMs, coordinates, speeds } = carData;
         const totalPoints = coordinates.length;
 
-        // Make it truly continuous by wrapping around
-        const floatIndex = progress * totalPoints;
-        const currentIndex = Math.floor(floatIndex) % totalPoints;
-        const nextIndex = (currentIndex + 1) % totalPoints;
+        if (totalPoints < 2) return;
+
+        // Calculate current time position in the lap (with looping)
+        const currentLapTime = elapsed % lapTimeMs;
+        
+        // Find which segment the car is currently in based on cumulative time
+        let segmentIndex = 0;
+        for (let i = 0; i < cumulativeTimes.length - 1; i++) {
+          if (currentLapTime >= cumulativeTimes[i] * 1000 && currentLapTime < cumulativeTimes[i + 1] * 1000) {
+            segmentIndex = i;
+            break;
+          }
+        }
+
+        // Handle wraparound to prevent index out of bounds
+        const currentIndex = segmentIndex % totalPoints;
+        const nextIndex = (segmentIndex + 1) % totalPoints;
+        
         const currentPos = coordinates[currentIndex];
         const nextPos = coordinates[nextIndex];
-        const currentSpeed = speeds?.[currentIndex] || 0;
+        const currentSpeed = speeds[currentIndex] || 10;
 
         if (currentPos && nextPos) {
-          // Smooth interpolation between points with wrapping
-          const localProgress = floatIndex - Math.floor(floatIndex);
-          const x =
-            currentPos[0] + (nextPos[0] - currentPos[0]) * localProgress;
-          const y =
-            currentPos[1] + (nextPos[1] - currentPos[1]) * localProgress;
+          // Calculate how far along this segment we are based on time
+          const segmentStartTime = cumulativeTimes[segmentIndex] * 1000;
+          const segmentEndTime = cumulativeTimes[segmentIndex + 1] * 1000;
+          const segmentProgress = segmentEndTime > segmentStartTime 
+            ? (currentLapTime - segmentStartTime) / (segmentEndTime - segmentStartTime)
+            : 0;
+          
+          // Clamp progress to [0, 1]
+          const localProgress = Math.max(0, Math.min(1, segmentProgress));
+          
+          // Interpolate position
+          const x = currentPos[0] + (nextPos[0] - currentPos[0]) * localProgress;
+          const y = currentPos[1] + (nextPos[1] - currentPos[1]) * localProgress;
 
           // Calculate car angle based on movement direction
-          const angle = Math.atan2(
-            nextPos[1] - currentPos[1],
-            nextPos[0] - currentPos[0]
-          );
+          const deltaX = nextPos[0] - currentPos[0];
+          const deltaY = nextPos[1] - currentPos[1];
+          const angle = Math.atan2(deltaY, deltaX);
 
           newPositions[car_id] = {
             x,
@@ -1303,8 +1361,12 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
       setCarPositions(newPositions);
       carPositionsRef.current = newPositions;
 
-      // Update animation progress for progress bar
-      animationProgress.current = progress;
+      // Update animation progress for progress bar based on first car's timing
+      if (carAnimationData.length > 0) {
+        const firstCarLapTime = carAnimationData[0].lapTimeMs;
+        const progress = (elapsed % firstCarLapTime) / firstCarLapTime;
+        animationProgress.current = progress;
+      }
 
       if (isRunning) {
         animationRef.current = requestAnimationFrame(animate);

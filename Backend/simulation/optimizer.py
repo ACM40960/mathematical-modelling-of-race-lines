@@ -9,7 +9,7 @@ from schemas.track import Car
 from scipy.ndimage import gaussian_filter1d
 from enum import Enum
 
-# Import the new model classes
+# Import the model classes
 from .algorithms.physics_model import PhysicsBasedModel
 from .algorithms.basic_model import BasicModel
 from .algorithms.kapania_model import KapaniaModel
@@ -202,12 +202,12 @@ def calculate_max_entry_speed(curvature: float, friction: float, car: Car) -> fl
     # 1. More inertia in corners
     # 2. Higher tire loading
     # 3. Reduced acceleration capability
-    reference_mass = 750.0  # F1 car reference mass
+    reference_mass = 1500.0  # FIXED: Use frontend default as reference mass
     mass_penalty = np.sqrt(reference_mass / mass)  # Heavier cars get < 1.0 multiplier
     
     # Acceleration-dependent speed scaling
     # Cars with better acceleration can carry more speed (better braking too)
-    reference_acceleration = 10.0  # m/s² reference
+    reference_acceleration = 5.0  # FIXED: Use frontend default as reference acceleration
     accel_boost = np.sqrt(car.max_acceleration / reference_acceleration)
     
     # Final speed calculation with physics factors
