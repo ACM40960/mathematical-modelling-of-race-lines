@@ -2,6 +2,7 @@
 
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function Home() {
   const router = useRouter();
@@ -76,8 +77,16 @@ export default function Home() {
 
         {/* Loading Text */}
         <div className="space-y-4">
-          <div className="text-6xl font-bold text-white mb-2">F1</div>
-          <div className="text-2xl text-gray-300 font-light">
+          <div className="text-6xl font-bold text-white mb-2 flex justify-center">
+            <Image
+              src="/F1-logo.svg"
+              alt="F1 Logo"
+              width={200}
+              height={200}
+              priority
+            />
+          </div>
+          <div className="text-3xl text-gray-300 mt-4">
             Racing Line Designer
           </div>
           <div className="text-sm text-gray-400 mt-6">
