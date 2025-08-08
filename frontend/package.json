@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@types/animejs": "^3.1.13",
-    "animejs": "^4.0.2",
+    "animejs": "^4.1.2",
     "chaikin-smooth": "^1.0.4",
     "chart.js": "^4.5.0",
     "next": "15.3.4",
