@@ -16,22 +16,20 @@ const MODEL_OPTIONS = [
 ];
 
 const PARAMETER_OPTIONS: ParameterOption[] = [
-  // Common parameters
-  { key: "mass", label: "Mass (kg)", modelType: "all" },
-  { key: "length", label: "Length (m)", modelType: "all" },
-  { key: "width", label: "Width (m)", modelType: "all" },
+  // Physics model parameters
+  { key: "mass", label: "Mass (kg)", modelType: "physics" },
+  { key: "length", label: "Length (m)", modelType: "physics" },
+  { key: "width", label: "Width (m)", modelType: "physics" },
   {
     key: "max_steering_angle",
     label: "Max Steering Angle (°)",
-    modelType: "all",
+    modelType: "physics",
   },
   {
     key: "max_acceleration",
     label: "Max Acceleration (m/s²)",
-    modelType: "all",
+    modelType: "physics",
   },
-
-  // Physics model parameters
   { key: "drag_coefficient", label: "Drag Coefficient", modelType: "physics" },
   { key: "lift_coefficient", label: "Lift Coefficient", modelType: "physics" },
   {
@@ -41,6 +39,19 @@ const PARAMETER_OPTIONS: ParameterOption[] = [
   },
 
   // Kapania model parameters
+  { key: "mass", label: "Mass (kg)", modelType: "kapania" },
+  { key: "length", label: "Length (m)", modelType: "kapania" },
+  { key: "width", label: "Width (m)", modelType: "kapania" },
+  {
+    key: "max_steering_angle",
+    label: "Max Steering Angle (°)",
+    modelType: "kapania",
+  },
+  {
+    key: "max_acceleration",
+    label: "Max Acceleration (m/s²)",
+    modelType: "kapania",
+  },
   { key: "yaw_inertia", label: "Yaw Inertia (kg·m²)", modelType: "kapania" },
   {
     key: "front_cornering_stiffness",

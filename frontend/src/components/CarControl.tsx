@@ -474,320 +474,16 @@ const CarControl: React.FC<CarControlProps> = ({
 
                 {/* Model-Specific Parameters */}
 
-                {selectedModel === "two_step_algorithm" ? (
-                  // Kapania Two Step Algorithm - Clean F1 Parameters
-                  <div className="mt-3 pt-3 border-t border-gray-300">
-                    <div className="text-xs text-blue-700 font-semibold mb-3">
-                      F1 CAR PARAMETERS
-                    </div>
-
-                    {/* Mass */}
-                    <div className="mb-2">
-                      <label className="block text-gray-600 text-xs mb-1">
-                        MASS (kg)
-                      </label>
-                      <input
-                        type="number"
-                        value={car.mass}
-                        min={validationRules.mass.min}
-                        max={validationRules.mass.max}
-                        step={validationRules.mass.step}
-                        onChange={(e) =>
-                          updateCarParam(index, "mass", Number(e.target.value))
-                        }
-                        className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-
-                    {/* Engine Force */}
-                    <div className="mb-2">
-                      <label className="block text-gray-600 text-xs mb-1">
-                        MAX ENGINE FORCE (N)
-                      </label>
-                      <input
-                        type="number"
-                        value={
-                          car.max_engine_force ||
-                          validationRules.max_engine_force.default
-                        }
-                        min={validationRules.max_engine_force.min}
-                        max={validationRules.max_engine_force.max}
-                        step={validationRules.max_engine_force.step}
-                        onChange={(e) =>
-                          updateCarParam(
-                            index,
-                            "max_engine_force",
-                            Number(e.target.value)
-                          )
-                        }
-                        className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-
-                    {/* Yaw Inertia */}
-                    <div className="mb-2">
-                      <label className="block text-gray-600 text-xs mb-1">
-                        YAW INERTIA (kg·m²)
-                      </label>
-                      <input
-                        type="number"
-                        value={
-                          car.yaw_inertia || validationRules.yaw_inertia.default
-                        }
-                        min={validationRules.yaw_inertia.min}
-                        max={validationRules.yaw_inertia.max}
-                        step={validationRules.yaw_inertia.step}
-                        onChange={(e) =>
-                          updateCarParam(
-                            index,
-                            "yaw_inertia",
-                            Number(e.target.value)
-                          )
-                        }
-                        className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-
-                    {/* Axle Distances */}
-                    <div className="grid grid-cols-2 gap-2 mb-2">
-                      <div>
-                        <label className="block text-gray-600 text-xs mb-1">
-                          FRONT AXLE (m)
-                        </label>
-                        <input
-                          type="number"
-                          value={
-                            car.front_axle_distance ||
-                            validationRules.front_axle_distance.default
-                          }
-                          min={validationRules.front_axle_distance.min}
-                          max={validationRules.front_axle_distance.max}
-                          step={validationRules.front_axle_distance.step}
-                          onChange={(e) =>
-                            updateCarParam(
-                              index,
-                              "front_axle_distance",
-                              Number(e.target.value)
-                            )
-                          }
-                          className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                        />
+                {
+                  selectedModel === "two_step_algorithm" ? (
+                    // Kapania Two Step Algorithm - Clean F1 Parameters
+                    <div className="mt-3 pt-3 border-t border-gray-300">
+                      <div className="text-xs text-blue-700 font-semibold mb-3">
+                        F1 CAR PARAMETERS
                       </div>
-                      <div>
-                        <label className="block text-gray-600 text-xs mb-1">
-                          REAR AXLE (m)
-                        </label>
-                        <input
-                          type="number"
-                          value={
-                            car.rear_axle_distance ||
-                            validationRules.rear_axle_distance.default
-                          }
-                          min={validationRules.rear_axle_distance.min}
-                          max={validationRules.rear_axle_distance.max}
-                          step={validationRules.rear_axle_distance.step}
-                          onChange={(e) =>
-                            updateCarParam(
-                              index,
-                              "rear_axle_distance",
-                              Number(e.target.value)
-                            )
-                          }
-                          className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
 
-                    {/* Cornering Stiffness */}
-                    <div className="grid grid-cols-2 gap-2 mb-3">
-                      <div>
-                        <label className="block text-gray-600 text-xs mb-1">
-                          FRONT STIFF (N/rad)
-                        </label>
-                        <input
-                          type="number"
-                          value={
-                            car.front_cornering_stiffness ||
-                            validationRules.front_cornering_stiffness.default
-                          }
-                          min={validationRules.front_cornering_stiffness.min}
-                          max={validationRules.front_cornering_stiffness.max}
-                          step={validationRules.front_cornering_stiffness.step}
-                          onChange={(e) =>
-                            updateCarParam(
-                              index,
-                              "front_cornering_stiffness",
-                              Number(e.target.value)
-                            )
-                          }
-                          className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-gray-600 text-xs mb-1">
-                          REAR STIFF (N/rad)
-                        </label>
-                        <input
-                          type="number"
-                          value={
-                            car.rear_cornering_stiffness ||
-                            validationRules.rear_cornering_stiffness.default
-                          }
-                          min={validationRules.rear_cornering_stiffness.min}
-                          max={validationRules.rear_cornering_stiffness.max}
-                          step={validationRules.rear_cornering_stiffness.step}
-                          onChange={(e) =>
-                            updateCarParam(
-                              index,
-                              "rear_cornering_stiffness",
-                              Number(e.target.value)
-                            )
-                          }
-                          className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    {/* F1 Aerodynamic & Performance Parameters */}
-                    <div className="text-xs font-semibold text-gray-700 mb-2 mt-4 border-t pt-2">
-                      F1 AERODYNAMIC & PERFORMANCE
-                    </div>
-
-                    {/* Downforce Factor */}
-                    <div className="mb-2">
-                      <label className="block text-gray-600 text-xs mb-1">
-                        DOWNFORCE FACTOR
-                      </label>
-                      <input
-                        type="number"
-                        value={
-                          car.downforce_factor ||
-                          validationRules.downforce_factor.default
-                        }
-                        min={validationRules.downforce_factor.min}
-                        max={validationRules.downforce_factor.max}
-                        step={validationRules.downforce_factor.step}
-                        onChange={(e) =>
-                          updateCarParam(
-                            index,
-                            "downforce_factor",
-                            Number(e.target.value)
-                          )
-                        }
-                        className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-
-                    {/* Speed Limits */}
-                    <div className="grid grid-cols-2 gap-2 mb-2">
-                      <div>
-                        <label className="block text-gray-600 text-xs mb-1">
-                          MAX STRAIGHT (m/s)
-                        </label>
-                        <input
-                          type="number"
-                          value={
-                            car.max_straight_speed ||
-                            validationRules.max_straight_speed.default
-                          }
-                          min={validationRules.max_straight_speed.min}
-                          max={validationRules.max_straight_speed.max}
-                          step={validationRules.max_straight_speed.step}
-                          onChange={(e) =>
-                            updateCarParam(
-                              index,
-                              "max_straight_speed",
-                              Number(e.target.value)
-                            )
-                          }
-                          className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-gray-600 text-xs mb-1">
-                          MAX LIMIT (m/s)
-                        </label>
-                        <input
-                          type="number"
-                          value={
-                            car.max_speed_limit ||
-                            validationRules.max_speed_limit.default
-                          }
-                          min={validationRules.max_speed_limit.min}
-                          max={validationRules.max_speed_limit.max}
-                          step={validationRules.max_speed_limit.step}
-                          onChange={(e) =>
-                            updateCarParam(
-                              index,
-                              "max_speed_limit",
-                              Number(e.target.value)
-                            )
-                          }
-                          className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Corner Speed & Braking */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-gray-600 text-xs mb-1">
-                          MIN CORNER (m/s)
-                        </label>
-                        <input
-                          type="number"
-                          value={
-                            car.min_corner_speed ||
-                            validationRules.min_corner_speed.default
-                          }
-                          min={validationRules.min_corner_speed.min}
-                          max={validationRules.min_corner_speed.max}
-                          step={validationRules.min_corner_speed.step}
-                          onChange={(e) =>
-                            updateCarParam(
-                              index,
-                              "min_corner_speed",
-                              Number(e.target.value)
-                            )
-                          }
-                          className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-gray-600 text-xs mb-1">
-                          BRAKE MULTIPLIER
-                        </label>
-                        <input
-                          type="number"
-                          value={
-                            car.brake_force_multiplier ||
-                            validationRules.brake_force_multiplier.default
-                          }
-                          min={validationRules.brake_force_multiplier.min}
-                          max={validationRules.brake_force_multiplier.max}
-                          step={validationRules.brake_force_multiplier.step}
-                          onChange={(e) =>
-                            updateCarParam(
-                              index,
-                              "brake_force_multiplier",
-                              Number(e.target.value)
-                            )
-                          }
-                          className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  // Other Models - Basic Parameters
-                  <div className="mt-3 pt-3 border-t border-gray-300">
-                    <div className="text-xs text-green-700 font-semibold mb-3">
-                      VEHICLE PARAMETERS
-                    </div>
-
-                    {/* Basic Parameters for other models */}
-                    <div className="grid grid-cols-2 gap-2 mb-2">
-                      <div>
+                      {/* Mass */}
+                      <div className="mb-2">
                         <label className="block text-gray-600 text-xs mb-1">
                           MASS (kg)
                         </label>
@@ -807,132 +503,470 @@ const CarControl: React.FC<CarControlProps> = ({
                           className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
                         />
                       </div>
-                      <div>
-                        <label className="block text-gray-600 text-xs mb-1">
-                          LENGTH (m)
-                        </label>
-                        <input
-                          type="number"
-                          value={car.length}
-                          min={validationRules.length.min}
-                          max={validationRules.length.max}
-                          step={validationRules.length.step}
-                          onChange={(e) =>
-                            updateCarParam(
-                              index,
-                              "length",
-                              Number(e.target.value)
-                            )
-                          }
-                          className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-gray-600 text-xs mb-1">
-                          WIDTH (m)
-                        </label>
-                        <input
-                          type="number"
-                          value={car.width}
-                          min={validationRules.width.min}
-                          max={validationRules.width.max}
-                          step={validationRules.width.step}
-                          onChange={(e) =>
-                            updateCarParam(
-                              index,
-                              "width",
-                              Number(e.target.value)
-                            )
-                          }
-                          className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-gray-600 text-xs mb-1">
-                          STEERING (°)
-                        </label>
-                        <input
-                          type="number"
-                          value={car.max_steering_angle}
-                          min={validationRules.max_steering_angle.min}
-                          max={validationRules.max_steering_angle.max}
-                          step={validationRules.max_steering_angle.step}
-                          onChange={(e) =>
-                            updateCarParam(
-                              index,
-                              "max_steering_angle",
-                              Number(e.target.value)
-                            )
-                          }
-                          className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                        />
-                      </div>
-                    </div>
 
-                    {/* Acceleration */}
-                    <div className="mb-2">
-                      <label className="block text-gray-600 text-xs mb-1">
-                        MAX ACCELERATION (m/s²)
-                      </label>
-                      <input
-                        type="number"
-                        value={car.max_acceleration}
-                        min={validationRules.max_acceleration.min}
-                        max={validationRules.max_acceleration.max}
-                        step={validationRules.max_acceleration.step}
-                        onChange={(e) =>
-                          updateCarParam(
-                            index,
-                            "max_acceleration",
-                            Number(e.target.value)
-                          )
-                        }
-                        className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-
-                    {/* Aerodynamic Parameters */}
-                    <div className="grid grid-cols-2 gap-2 mb-2">
-                      <div>
+                      {/* Engine Force */}
+                      <div className="mb-2">
                         <label className="block text-gray-600 text-xs mb-1">
-                          DRAG COEFF
+                          MAX ENGINE FORCE (N)
                         </label>
                         <input
                           type="number"
                           value={
-                            car.drag_coefficient ||
-                            validationRules.drag_coefficient.default
+                            car.max_engine_force ||
+                            validationRules.max_engine_force.default
                           }
-                          min={validationRules.drag_coefficient.min}
-                          max={validationRules.drag_coefficient.max}
-                          step={validationRules.drag_coefficient.step}
+                          min={validationRules.max_engine_force.min}
+                          max={validationRules.max_engine_force.max}
+                          step={validationRules.max_engine_force.step}
                           onChange={(e) =>
                             updateCarParam(
                               index,
-                              "drag_coefficient",
+                              "max_engine_force",
                               Number(e.target.value)
                             )
                           }
                           className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
                         />
                       </div>
-                      <div>
+
+                      {/* Yaw Inertia */}
+                      <div className="mb-2">
                         <label className="block text-gray-600 text-xs mb-1">
-                          DOWNFORCE
+                          YAW INERTIA (kg·m²)
                         </label>
                         <input
                           type="number"
                           value={
-                            car.lift_coefficient ||
-                            validationRules.lift_coefficient.default
+                            car.yaw_inertia ||
+                            validationRules.yaw_inertia.default
                           }
-                          min={validationRules.lift_coefficient.min}
-                          max={validationRules.lift_coefficient.max}
-                          step={validationRules.lift_coefficient.step}
+                          min={validationRules.yaw_inertia.min}
+                          max={validationRules.yaw_inertia.max}
+                          step={validationRules.yaw_inertia.step}
                           onChange={(e) =>
                             updateCarParam(
                               index,
-                              "lift_coefficient",
+                              "yaw_inertia",
+                              Number(e.target.value)
+                            )
+                          }
+                          className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Axle Distances */}
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                          <label className="block text-gray-600 text-xs mb-1">
+                            FRONT AXLE (m)
+                          </label>
+                          <input
+                            type="number"
+                            value={
+                              car.front_axle_distance ||
+                              validationRules.front_axle_distance.default
+                            }
+                            min={validationRules.front_axle_distance.min}
+                            max={validationRules.front_axle_distance.max}
+                            step={validationRules.front_axle_distance.step}
+                            onChange={(e) =>
+                              updateCarParam(
+                                index,
+                                "front_axle_distance",
+                                Number(e.target.value)
+                              )
+                            }
+                            className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-600 text-xs mb-1">
+                            REAR AXLE (m)
+                          </label>
+                          <input
+                            type="number"
+                            value={
+                              car.rear_axle_distance ||
+                              validationRules.rear_axle_distance.default
+                            }
+                            min={validationRules.rear_axle_distance.min}
+                            max={validationRules.rear_axle_distance.max}
+                            step={validationRules.rear_axle_distance.step}
+                            onChange={(e) =>
+                              updateCarParam(
+                                index,
+                                "rear_axle_distance",
+                                Number(e.target.value)
+                              )
+                            }
+                            className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Cornering Stiffness */}
+                      <div className="grid grid-cols-2 gap-2 mb-3">
+                        <div>
+                          <label className="block text-gray-600 text-xs mb-1">
+                            FRONT STIFF (N/rad)
+                          </label>
+                          <input
+                            type="number"
+                            value={
+                              car.front_cornering_stiffness ||
+                              validationRules.front_cornering_stiffness.default
+                            }
+                            min={validationRules.front_cornering_stiffness.min}
+                            max={validationRules.front_cornering_stiffness.max}
+                            step={
+                              validationRules.front_cornering_stiffness.step
+                            }
+                            onChange={(e) =>
+                              updateCarParam(
+                                index,
+                                "front_cornering_stiffness",
+                                Number(e.target.value)
+                              )
+                            }
+                            className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-600 text-xs mb-1">
+                            REAR STIFF (N/rad)
+                          </label>
+                          <input
+                            type="number"
+                            value={
+                              car.rear_cornering_stiffness ||
+                              validationRules.rear_cornering_stiffness.default
+                            }
+                            min={validationRules.rear_cornering_stiffness.min}
+                            max={validationRules.rear_cornering_stiffness.max}
+                            step={validationRules.rear_cornering_stiffness.step}
+                            onChange={(e) =>
+                              updateCarParam(
+                                index,
+                                "rear_cornering_stiffness",
+                                Number(e.target.value)
+                              )
+                            }
+                            className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* F1 Aerodynamic & Performance Parameters */}
+                      <div className="text-xs font-semibold text-gray-700 mb-2 mt-4 border-t pt-2">
+                        F1 AERODYNAMIC & PERFORMANCE
+                      </div>
+
+                      {/* Downforce Factor */}
+                      <div className="mb-2">
+                        <label className="block text-gray-600 text-xs mb-1">
+                          DOWNFORCE FACTOR
+                        </label>
+                        <input
+                          type="number"
+                          value={
+                            car.downforce_factor ||
+                            validationRules.downforce_factor.default
+                          }
+                          min={validationRules.downforce_factor.min}
+                          max={validationRules.downforce_factor.max}
+                          step={validationRules.downforce_factor.step}
+                          onChange={(e) =>
+                            updateCarParam(
+                              index,
+                              "downforce_factor",
+                              Number(e.target.value)
+                            )
+                          }
+                          className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Speed Limits */}
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                          <label className="block text-gray-600 text-xs mb-1">
+                            MAX STRAIGHT (m/s)
+                          </label>
+                          <input
+                            type="number"
+                            value={
+                              car.max_straight_speed ||
+                              validationRules.max_straight_speed.default
+                            }
+                            min={validationRules.max_straight_speed.min}
+                            max={validationRules.max_straight_speed.max}
+                            step={validationRules.max_straight_speed.step}
+                            onChange={(e) =>
+                              updateCarParam(
+                                index,
+                                "max_straight_speed",
+                                Number(e.target.value)
+                              )
+                            }
+                            className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-600 text-xs mb-1">
+                            MAX LIMIT (m/s)
+                          </label>
+                          <input
+                            type="number"
+                            value={
+                              car.max_speed_limit ||
+                              validationRules.max_speed_limit.default
+                            }
+                            min={validationRules.max_speed_limit.min}
+                            max={validationRules.max_speed_limit.max}
+                            step={validationRules.max_speed_limit.step}
+                            onChange={(e) =>
+                              updateCarParam(
+                                index,
+                                "max_speed_limit",
+                                Number(e.target.value)
+                              )
+                            }
+                            className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Corner Speed & Braking */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-gray-600 text-xs mb-1">
+                            MIN CORNER (m/s)
+                          </label>
+                          <input
+                            type="number"
+                            value={
+                              car.min_corner_speed ||
+                              validationRules.min_corner_speed.default
+                            }
+                            min={validationRules.min_corner_speed.min}
+                            max={validationRules.min_corner_speed.max}
+                            step={validationRules.min_corner_speed.step}
+                            onChange={(e) =>
+                              updateCarParam(
+                                index,
+                                "min_corner_speed",
+                                Number(e.target.value)
+                              )
+                            }
+                            className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-600 text-xs mb-1">
+                            BRAKE MULTIPLIER
+                          </label>
+                          <input
+                            type="number"
+                            value={
+                              car.brake_force_multiplier ||
+                              validationRules.brake_force_multiplier.default
+                            }
+                            min={validationRules.brake_force_multiplier.min}
+                            max={validationRules.brake_force_multiplier.max}
+                            step={validationRules.brake_force_multiplier.step}
+                            onChange={(e) =>
+                              updateCarParam(
+                                index,
+                                "brake_force_multiplier",
+                                Number(e.target.value)
+                              )
+                            }
+                            className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : selectedModel === "physics_based" ? (
+                    // Physics-Based Model Parameters
+                    <div className="mt-3 pt-3 border-t border-gray-300">
+                      <div className="text-xs text-green-700 font-semibold mb-3">
+                        VEHICLE PARAMETERS
+                      </div>
+
+                      {/* Basic Parameters for Physics-Based Model */}
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                          <label className="block text-gray-600 text-xs mb-1">
+                            MASS (kg)
+                          </label>
+                          <input
+                            type="number"
+                            value={car.mass}
+                            min={validationRules.mass.min}
+                            max={validationRules.mass.max}
+                            step={validationRules.mass.step}
+                            onChange={(e) =>
+                              updateCarParam(
+                                index,
+                                "mass",
+                                Number(e.target.value)
+                              )
+                            }
+                            className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-600 text-xs mb-1">
+                            LENGTH (m)
+                          </label>
+                          <input
+                            type="number"
+                            value={car.length}
+                            min={validationRules.length.min}
+                            max={validationRules.length.max}
+                            step={validationRules.length.step}
+                            onChange={(e) =>
+                              updateCarParam(
+                                index,
+                                "length",
+                                Number(e.target.value)
+                              )
+                            }
+                            className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-600 text-xs mb-1">
+                            WIDTH (m)
+                          </label>
+                          <input
+                            type="number"
+                            value={car.width}
+                            min={validationRules.width.min}
+                            max={validationRules.width.max}
+                            step={validationRules.width.step}
+                            onChange={(e) =>
+                              updateCarParam(
+                                index,
+                                "width",
+                                Number(e.target.value)
+                              )
+                            }
+                            className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-600 text-xs mb-1">
+                            STEERING (°)
+                          </label>
+                          <input
+                            type="number"
+                            value={car.max_steering_angle}
+                            min={validationRules.max_steering_angle.min}
+                            max={validationRules.max_steering_angle.max}
+                            step={validationRules.max_steering_angle.step}
+                            onChange={(e) =>
+                              updateCarParam(
+                                index,
+                                "max_steering_angle",
+                                Number(e.target.value)
+                              )
+                            }
+                            className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Acceleration */}
+                      <div className="mb-2">
+                        <label className="block text-gray-600 text-xs mb-1">
+                          MAX ACCELERATION (m/s²)
+                        </label>
+                        <input
+                          type="number"
+                          value={car.max_acceleration}
+                          min={validationRules.max_acceleration.min}
+                          max={validationRules.max_acceleration.max}
+                          step={validationRules.max_acceleration.step}
+                          onChange={(e) =>
+                            updateCarParam(
+                              index,
+                              "max_acceleration",
+                              Number(e.target.value)
+                            )
+                          }
+                          className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+
+                      {/* Aerodynamic Parameters */}
+                      <div className="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                          <label className="block text-gray-600 text-xs mb-1">
+                            DRAG COEFF
+                          </label>
+                          <input
+                            type="number"
+                            value={
+                              car.drag_coefficient ||
+                              validationRules.drag_coefficient.default
+                            }
+                            min={validationRules.drag_coefficient.min}
+                            max={validationRules.drag_coefficient.max}
+                            step={validationRules.drag_coefficient.step}
+                            onChange={(e) =>
+                              updateCarParam(
+                                index,
+                                "drag_coefficient",
+                                Number(e.target.value)
+                              )
+                            }
+                            className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-600 text-xs mb-1">
+                            DOWNFORCE
+                          </label>
+                          <input
+                            type="number"
+                            value={
+                              car.lift_coefficient ||
+                              validationRules.lift_coefficient.default
+                            }
+                            min={validationRules.lift_coefficient.min}
+                            max={validationRules.lift_coefficient.max}
+                            step={validationRules.lift_coefficient.step}
+                            onChange={(e) =>
+                              updateCarParam(
+                                index,
+                                "lift_coefficient",
+                                Number(e.target.value)
+                              )
+                            }
+                            className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Effective Frontal Area - Important for Physics-Based Model */}
+                      <div className="mb-2">
+                        <label className="block text-gray-600 text-xs mb-1">
+                          FRONTAL AREA (m²)
+                        </label>
+                        <input
+                          type="number"
+                          value={
+                            car.effective_frontal_area ||
+                            validationRules.effective_frontal_area.default
+                          }
+                          min={validationRules.effective_frontal_area.min}
+                          max={validationRules.effective_frontal_area.max}
+                          step={validationRules.effective_frontal_area.step}
+                          onChange={(e) =>
+                            updateCarParam(
+                              index,
+                              "effective_frontal_area",
                               Number(e.target.value)
                             )
                           }
@@ -940,33 +974,8 @@ const CarControl: React.FC<CarControlProps> = ({
                         />
                       </div>
                     </div>
-
-                    {/* Effective Frontal Area - Important for Physics-Based Model */}
-                    <div className="mb-2">
-                      <label className="block text-gray-600 text-xs mb-1">
-                        FRONTAL AREA (m²)
-                      </label>
-                      <input
-                        type="number"
-                        value={
-                          car.effective_frontal_area ||
-                          validationRules.effective_frontal_area.default
-                        }
-                        min={validationRules.effective_frontal_area.min}
-                        max={validationRules.effective_frontal_area.max}
-                        step={validationRules.effective_frontal_area.step}
-                        onChange={(e) =>
-                          updateCarParam(
-                            index,
-                            "effective_frontal_area",
-                            Number(e.target.value)
-                          )
-                        }
-                        className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                )}
+                  ) : null /* No additional parameters for basic model */
+                }
               </div>
             )}
           </div>
