@@ -2,7 +2,7 @@
 
 import { Track, Car, Point, SimulationResult } from '@/types';
 
-const STORAGE_KEYS = {
+export const STORAGE_KEYS = {
   TRACK: 'f1_racing_track',
   CARS: 'f1_racing_cars',
   SIMULATION_RESULTS: 'f1_racing_simulation_results',
