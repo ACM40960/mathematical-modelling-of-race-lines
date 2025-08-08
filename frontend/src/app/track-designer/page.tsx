@@ -286,7 +286,10 @@ export default function TrackDesigner() {
                   key={index}
                   className="mb-2 p-2 bg-gray-50 rounded text-sm"
                 >
-                  <div className="font-medium">Car {index + 1}</div>
+                  <div className="font-medium">
+                    {cars.find((car) => car.id === result.car_id)?.team_name ||
+                      `Car ${index + 1}`}
+                  </div>
                   <div>Lap Time: {result.lap_time.toFixed(3)}s</div>
                   <div>Points: {result.coordinates.length}</div>
                 </div>
