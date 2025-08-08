@@ -67,11 +67,17 @@ export default function Home() {
             </g>
 
             {/* Animated F1 Car */}
-            <div className="motion-path">
-              <div className="w-4 h-2 bg-white rounded-sm shadow-lg transform -translate-x-2 -translate-y-1">
-                <div className="w-1 h-1 bg-red-500 rounded-full absolute top-0 left-1"></div>
-              </div>
-            </div>
+            <g className="motion-path">
+              <rect
+                width="16"
+                height="8"
+                fill="white"
+                rx="2"
+                transform="translate(-8, -4)"
+                className="shadow-lg"
+              />
+              <circle r="2" fill="#DC0000" transform="translate(4, 0)" />
+            </g>
           </svg>
         </div>
 
