@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Car, ValidationRule, Track } from "../types";
+import { saveSimulationResults } from "@/lib/dataStore";
 
 interface CarControlProps {
   cars: Car[];
@@ -316,7 +317,12 @@ const CarControl: React.FC<CarControlProps> = ({
         </div>
         <select
           value={selectedModel}
-          onChange={(e) => setSelectedModel(e.target.value)}
+          onChange={(e) => {
+            setSelectedModel(e.target.value);
+            // Clear simulation results when changing models
+            // Clear simulation results when changing models
+            saveSimulationResults([]);
+          }}
           className="w-full bg-white text-gray-800 border border-gray-300 rounded px-2 py-1 text-xs focus:border-blue-500 focus:outline-none"
         >
           {availableModels.map((model) => (

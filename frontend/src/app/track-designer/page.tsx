@@ -65,16 +65,14 @@ export default function TrackDesigner() {
     const loadedCars = loadCars();
     const loadedResults = loadSimulationResults();
     const loadedSettings = loadTrackSettings();
-    // REMOVED: const loadedLines = loadLines(); // This was causing random graphs on refresh
     const loadedModel = loadSelectedModel();
 
     if (loadedTrack) setTrack(loadedTrack);
     if (loadedCars.length > 0) setCars(loadedCars);
     if (loadedResults.length > 0) setSimulationResults(loadedResults);
-    // REMOVED: if (loadedLines.length > 0) setLines(loadedLines); // This was causing random graphs on refresh
 
     setTrackWidth(loadedSettings.trackWidth);
-    setFriction(loadedSettings.trackFriction || 0.8); // Fix: Load friction from localStorage
+    setFriction(loadedSettings.trackFriction || 0.8);
     setTrackLength(loadedSettings.trackLength);
     setDiscretizationStep(loadedSettings.discretizationStep);
     setSelectedTrackName(loadedSettings.selectedTrackName);
@@ -84,6 +82,14 @@ export default function TrackDesigner() {
       "Track Designer loaded with saved data (lines loading disabled to prevent random graphs)"
     );
   }, []);
+
+  // Update track when cars change
+  useEffect(() => {
+    if (track) {
+      const updatedTrack = { ...track, cars };
+      setTrack(updatedTrack);
+    }
+  }, [cars]);
 
   // Save data to localStorage when state changes
   useEffect(() => {
@@ -101,7 +107,7 @@ export default function TrackDesigner() {
   useEffect(() => {
     saveTrackSettings({
       trackWidth,
-      trackFriction: friction, // Fix: Save friction to localStorage
+      trackFriction: friction,
       trackLength,
       discretizationStep,
       selectedTrackName,
@@ -122,7 +128,6 @@ export default function TrackDesigner() {
   useEffect(() => {
     if (lines.length === 0 && cars.length > 0 && simulationResults.length > 0) {
       console.log("Navigation detected: Clearing stale simulation results");
-      // Only clear simulation results if they exist and we have no track
       setSimulationResults([]);
     }
   }, [lines.length, cars.length, simulationResults.length]);
@@ -130,8 +135,6 @@ export default function TrackDesigner() {
   // Listen for storage changes from other windows
   useStorageListener((key) => {
     console.log("Storage update received:", key);
-    // We could update state here if needed, but for track designer
-    // we primarily push data, not receive it
   });
 
   // Clear all drawn lines and results
@@ -140,7 +143,6 @@ export default function TrackDesigner() {
     setTrack(null);
     setSimulationResults([]);
     setSelectedTrackName(undefined);
-    // Also clear lines from localStorage to prevent future random graphs
     localStorage.removeItem("f1_racing_lines");
   };
 
@@ -153,13 +155,11 @@ export default function TrackDesigner() {
     setLines([trackPoints]);
     setTrackLength(length);
 
-    // Only clear selected track name if user manually draws (not when loading preset)
     if (selectedTrackName && !isLoadingPreset) {
-      console.log("🎨 User manually drew track, clearing preset selection");
+      console.log("User manually drew track, clearing preset selection");
       setSelectedTrackName(undefined);
     }
 
-    // Update track object
     const newTrack = {
       track_points: trackPoints,
       width: trackWidth,
@@ -173,13 +173,9 @@ export default function TrackDesigner() {
   const handleTrackSelect = (trackPreset: TrackPreset) => {
     console.log("Loading preset track:", trackPreset.name);
 
-    // Set loading flag to prevent clearing selectedTrackName
     setIsLoadingPreset(true);
-
-    // Update lines with preset track points
     setLines([trackPreset.track_points]);
 
-    // Update track state
     const newTrack = {
       track_points: trackPreset.track_points,
       width: trackPreset.width,
@@ -188,30 +184,25 @@ export default function TrackDesigner() {
     };
     setTrack(newTrack);
 
-    // Update track parameters
     setTrackWidth(trackPreset.width);
     setFriction(trackPreset.friction);
-    setTrackLength(trackPreset.track_length / 1000); // Convert meters to kilometers
+    setTrackLength(trackPreset.track_length / 1000);
     setSelectedTrackName(trackPreset.name);
 
-    // Clear loading flag after a short delay to allow canvas updates
     setTimeout(() => {
       setIsLoadingPreset(false);
-      console.log("✅ Preset track loaded successfully:", trackPreset.name);
+      console.log("Preset track loaded successfully:", trackPreset.name);
     }, 100);
 
-    // Clear any existing simulation results
-    setSimulationResults([]);
-
-    console.log("Selected track:", trackPreset.name);
+    // Don't clear simulation results when switching tracks
+    // setSimulationResults([]); // REMOVED THIS LINE
   };
 
   // Handle custom track selection from Header
   const handleCustomTrack = () => {
-    console.log("🎨 Switching to custom track mode");
+    console.log("Switching to custom track mode");
     setSelectedTrackName(undefined);
-    setIsLoadingPreset(false); // Ensure we're not in loading state
-    // Don't clear existing track, just remove the preset name
+    setIsLoadingPreset(false);
   };
 
   // Handle track length change
@@ -222,7 +213,6 @@ export default function TrackDesigner() {
   // Handle friction change
   const handleFrictionChange = (newFriction: number) => {
     setFriction(newFriction);
-    // Update track object if it exists
     if (track) {
       const updatedTrack = { ...track, friction: newFriction };
       setTrack(updatedTrack);
@@ -232,11 +222,12 @@ export default function TrackDesigner() {
   // Handle car updates
   const handleCarsUpdate = (newCars: Car[]) => {
     setCars(newCars);
-    // Update track object if it exists
-    if (track) {
-      const updatedTrack = { ...track, cars: newCars };
-      setTrack(updatedTrack);
-    }
+  };
+
+  // Handle new simulation results
+  const handleNewSimulationResults = (newResults: SimulationResult[]) => {
+    console.log("Setting new simulation results:", newResults);
+    setSimulationResults(newResults);
   };
 
   return (
@@ -262,7 +253,7 @@ export default function TrackDesigner() {
               onTrackLengthChange={handleTrackLengthChange}
               cars={cars}
               simulationResults={simulationResults}
-              onSimulationResults={setSimulationResults}
+              onSimulationResults={handleNewSimulationResults}
               selectedModel={selectedModel}
             />
           </div>

@@ -60,6 +60,7 @@ export interface SimulationResult {
   coordinates: number[][];
   speeds: number[];
   lap_time: number;
+  model: string; // Add model information to track which model was used
 }
 
 // New interfaces for track selection
