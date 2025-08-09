@@ -277,23 +277,55 @@ export default function TrackDesigner() {
             setSelectedModel={setSelectedModel}
           />
 
-          {/* Results Display */}
+          {/* Results Display Section */}
           {simulationResults.length > 0 && (
             <div className="p-4 border border-gray-300 rounded">
-              <h3 className="font-semibold text-gray-800 mb-3">Results</h3>
-              {simulationResults.map((result, index) => (
-                <div
-                  key={index}
-                  className="mb-2 p-2 bg-gray-50 rounded text-sm"
-                >
-                  <div className="font-medium">
-                    {cars.find((car) => car.id === result.car_id)?.team_name ||
-                      `Car ${index + 1}`}
-                  </div>
-                  <div>Lap Time: {result.lap_time.toFixed(3)}s</div>
-                  <div>Points: {result.coordinates.length}</div>
-                </div>
-              ))}
+              <h3 className="font-semibold text-gray-800 mb-3">Race Results</h3>
+              {/* Create a new array and sort results by lap time (fastest first) */}
+              {[...simulationResults]
+                .sort((a, b) => a.lap_time - b.lap_time)
+                .map((result, position) => {
+                  // Find the corresponding car details using car_id
+                  const car = cars.find((car) => car.id === result.car_id);
+
+                  // Calculate the fastest lap time once for gap calculations
+                  const fastestLapTime = simulationResults.reduce(
+                    (fastest, current) =>
+                      current.lap_time < fastest ? current.lap_time : fastest,
+                    simulationResults[0].lap_time
+                  );
+
+                  return (
+                    <div
+                      key={result.car_id}
+                      className="mb-2 p-2 bg-gray-50 rounded text-sm"
+                    >
+                      {/* Position and Team Name Row */}
+                      <div className="font-medium flex items-center gap-2">
+                        {/* Position indicator (P1, P2, etc.) */}
+                        <span className="text-gray-500">P{position + 1}</span>
+                        {/* Team name in their car color */}
+                        <span style={{ color: car?.car_color }}>
+                          {car?.team_name || `Car ${position + 1}`}
+                        </span>
+                      </div>
+
+                      {/* Lap Time Row */}
+                      <div>Lap Time: {result.lap_time.toFixed(3)}s</div>
+
+                      {/* Gap to Leader Row */}
+                      <div>
+                        Gap:{" "}
+                        {position === 0
+                          ? "Leader" // P1 is marked as Leader
+                          : // For others, show gap to leader
+                            `+${(result.lap_time - fastestLapTime).toFixed(
+                              3
+                            )}s`}
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           )}
         </div>
