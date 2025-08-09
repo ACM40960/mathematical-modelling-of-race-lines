@@ -717,4 +717,62 @@ def get_sample_f1_tracks() -> List[Dict[str, Any]]:
         "is_active": True
     })
 
+    # THUNDERHILL RACEWAY PARK - Test Circuit for Poster Visualization
+    # 4.8 km, 15 corners - Based on uploaded circuit layout
+    # Smooth, realistic track with proper racing line opportunities
+    thunderhill_points = [
+        {'x': 600, 'y': 500},   # Start/Finish line
+        {'x': 650, 'y': 520},   # Approach to Turn 1
+        {'x': 720, 'y': 550},   # Turn 1 - fast sweeping right
+        {'x': 800, 'y': 580},   # Exit Turn 1
+        {'x': 880, 'y': 620},   # Approach to Turn 2
+        {'x': 950, 'y': 680},   # Turn 2 - hairpin right
+        {'x': 1000, 'y': 750},  # Exit Turn 2
+        {'x': 1020, 'y': 820},  # Turn 3 - medium left
+        {'x': 1000, 'y': 890},  # Exit Turn 3
+        {'x': 950, 'y': 950},   # Approach to Turn 4
+        {'x': 880, 'y': 980},   # Turn 4 - chicane left
+        {'x': 800, 'y': 990},   # Turn 5 - chicane right (5A)
+        {'x': 720, 'y': 980},   # Exit chicane complex
+        {'x': 650, 'y': 950},   # Turn 6 - sweeping left
+        {'x': 580, 'y': 900},   # Exit Turn 6
+        {'x': 520, 'y': 830},   # Turn 7 - long sweeping left
+        {'x': 480, 'y': 750},   # Continue Turn 7
+        {'x': 460, 'y': 670},   # Turn 8 - tight left
+        {'x': 470, 'y': 590},   # Exit Turn 8
+        {'x': 500, 'y': 520},   # Turn 9 - sweeping right
+        {'x': 550, 'y': 470},   # Continue Turn 9
+        {'x': 620, 'y': 440},   # Turn 10 - medium right
+        {'x': 700, 'y': 430},   # Back straight approach
+        {'x': 780, 'y': 440},   # Turn 11 - medium left
+        {'x': 850, 'y': 460},   # Turn 12 - fast right
+        {'x': 900, 'y': 500},   # Turn 13 - sweeping left
+        {'x': 920, 'y': 550},   # Turn 14 - penultimate corner
+        {'x': 900, 'y': 600},   # Turn 15 - final corner
+        {'x': 850, 'y': 620},   # Exit Turn 15
+        {'x': 780, 'y': 630},   # Main straight
+        {'x': 700, 'y': 620},   # Continue main straight
+        {'x': 620, 'y': 580},   # Approach start/finish
+        {'x': 600, 'y': 540},   # Final approach
+        {'x': 600, 'y': 500}    # Back to start/finish
+    ]
+
+    tracks.append({
+        "name": "Thunderhill Raceway Park",
+        "country": "USA",
+        "circuit_type": "Permanent Circuit",
+        "track_points": thunderhill_points,
+        "width": 20.0,  # Match Kapania model hardcoded width
+        "friction": 0.85,
+        "track_length": 4800,  # 4.8 km as specified
+        "description": "Technical road course featuring 15 challenging turns with elevation changes and multiple racing line options.",
+        "preview_image_url": None,
+        "difficulty_rating": 7.5,
+        "elevation_change": 30.0,
+        "number_of_turns": 15,
+        "fastest_lap_time": 95.0,  # Estimated for poster demonstration
+        "year_built": 1993,
+        "is_active": True
+    })
+
     return tracks 
