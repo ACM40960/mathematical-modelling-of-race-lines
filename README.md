@@ -191,3 +191,70 @@ Access: http://localhost:3000
 ## Contact & Credits
 - Created by Joel Thomas Chacko (24220504) and Sarosh Farhan.
 - For questions, suggestions, or contributions, please open an issue or pull request.
+
+## Repository Structure
+
+<details>
+<summary>📁 Project Structure (Click to expand)</summary>
+
+```
+project-maths-modelling-project-sarosh-farhan/
+├── Backend/                          # FastAPI Backend
+│   ├── data/
+│   │   └── track_data.py            # Sample F1 track data
+│   ├── schemas/
+│   │   ├── track.py                 # Database models & Pydantic schemas
+│   │   └── response.py              # API response models
+│   ├── simulation/
+│   │   ├── algorithms/              # Racing line models
+│   │   │   ├── base_model.py        # Abstract base class
+│   │   │   ├── basic_model.py       # Simple geometric model
+│   │   │   ├── physics_model.py     # Physics-based optimization
+│   │   │   └── kapania_model.py     # Two-step algorithm
+│   │   ├── aerodynamics.py          # Aerodynamic calculations
+│   │   ├── curvilinear_coordinates.py # Track geometry
+│   │   └── optimizer.py             # Main optimization orchestrator
+│   ├── tests/                       # Testing & analysis
+│   │   ├── models/
+│   │   │   └── advanced_analysis_results/ # Research outputs
+│   │   └── demo_kapania_analysis.py
+│   ├── database.py                  # PostgreSQL connection
+│   ├── main.py                      # FastAPI application
+│   └── requirements.txt             # Python dependencies
+├── frontend/                        # Next.js Frontend
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── page.tsx            # Main application
+│   │   │   ├── track-designer/      # Track drawing interface
+│   │   │   └── parameter-analysis/  # Model controls
+│   │   ├── components/
+│   │   │   ├── CanvasDrawPaper.tsx  # Paper.js canvas
+│   │   │   ├── TrackControl.tsx     # Track parameters
+│   │   │   ├── CarControl.tsx       # Vehicle settings
+│   │   │   └── ParameterAnalysis.tsx # Model selection
+│   │   ├── lib/
+│   │   │   └── dataStore.ts         # State management
+│   │   └── types/
+│   │       └── index.ts             # TypeScript definitions
+│   ├── package.json                 # Node.js dependencies
+│   └── next.config.ts               # Next.js configuration
+├── docs/                            # Documentation
+│   ├── models/
+│   │   ├── poster/                  # Research presentation
+│   │   │   ├── poster.md           # Academic documentation
+│   │   │   ├── poster.ipynb        # Jupyter notebook
+│   │   │   └── images/             # Generated visualizations
+│   │   ├── physics-based-model.md  # Physics model docs
+│   │   └── kapania-two-step-algorithm.md # Kapania docs
+│   ├── demo/
+│   │   └── physics-based/          # Component demonstrations
+│   │       ├── 01_corner_speed_calculation.py
+│   │       ├── 02_straight_speed_calculation.py
+│   │       ├── 03_late_apex_strategy.py
+│   │       ├── 04_lap_optimization.py
+│   │       └── 05_complete_physics_integration.py
+│   └── backend-flow-diagram.md     # System architecture
+└── README.md                       # This file
+```
+
+</details>
