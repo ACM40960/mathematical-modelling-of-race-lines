@@ -335,16 +335,12 @@ def optimize_racing_line(track, model: RacingLineModel = RacingLineModel.PHYSICS
     if not np.allclose(base_racing_line[0], base_racing_line[-1], atol=1e-3):
         base_racing_line = np.vstack([base_racing_line, base_racing_line[0]])
     
-    # For multiple cars, create separated racing lines to prevent crossovers
+    # Always use separated racing lines function for consistent smoothing
+    # This ensures both single and multiple cars get the same smoothing treatment
     num_cars = len(track.cars)
-    if num_cars == 1:
-        # Single car - use optimal racing line
-        racing_lines = [base_racing_line]
-    else:
-        # Multiple cars - create separated lines
-        racing_lines = create_separated_racing_lines(
-            resampled_points, base_racing_line, track_width, num_cars
-        )
+    racing_lines = create_separated_racing_lines(
+        resampled_points, base_racing_line, track_width, num_cars
+    )
     
     optimal_lines = []
     
@@ -402,7 +398,9 @@ def create_separated_racing_lines(
     num_cars: int
 ) -> List[np.ndarray]:
     """
-    Create separated racing lines for multiple cars to prevent crossovers
+    Create separated racing lines for cars and apply consistent smoothing
+    For single car: applies smoothing with zero offset (optimal line)
+    For multiple cars: creates separated lines to prevent crossovers
     """
     racing_lines = []
     
@@ -423,7 +421,10 @@ def create_separated_racing_lines(
     max_usable_width = track_width * 0.8
     
     # Calculate positions for each car
-    if num_cars == 2:
+    if num_cars == 1:
+        # Single car - use optimal racing line with zero offset but apply smoothing
+        offsets = [0.0]
+    elif num_cars == 2:
         offsets = [-min_separation * 0.7, min_separation * 0.7]
     elif num_cars == 3:
         offsets = [-min_separation, 0, min_separation]
