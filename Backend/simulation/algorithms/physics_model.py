@@ -93,18 +93,18 @@ class PhysicsBasedModel(BaseRacingLineModel):
                 
                 # Validate arrays match
                 if len(speeds) != len(racing_line):
-                    print(f"      ⚠️ Array length mismatch, adjusting...")
+                    print(f"      Array length mismatch, adjusting...")
                     min_len = min(len(speeds), len(racing_line))
                     speeds = speeds[:min_len]
                     racing_line = racing_line[:min_len]
                 
                 # Calculate lap time (optimization objective)
                 lap_time = self._calculate_lap_time(speeds, racing_line)
-                print(f"      📊 Lap time: {lap_time:.2f}s")
+                print(f"      Lap time: {lap_time:.2f}s")
                 
                 # Check for reasonable lap time bounds
                 if lap_time <= 0 or lap_time > 1000:
-                    print(f"      ⚠️ Invalid lap time: {lap_time}s, skipping iteration")
+                    print(f"      Invalid lap time: {lap_time}s, skipping iteration")
                     continue
                 
                 # Check for improvement
@@ -112,13 +112,13 @@ class PhysicsBasedModel(BaseRacingLineModel):
                     improvement = best_lap_time - lap_time
                     best_lap_time = lap_time
                     best_path = racing_line.copy()
-                    print(f"      🎯 New best! Improvement: {improvement:.2f}s")
+                    print(f"      New best! Improvement: {improvement:.2f}s")
                 else:
-                    print(f"      📈 No improvement")
+                    print(f"      No improvement")
                 
                 # Check convergence
                 if iteration > 0 and abs(prev_lap_time - lap_time) < self.CONVERGENCE_THRESHOLD:
-                    print(f"      ✅ Converged!")
+                    print(f"      Converged!")
                     break
                 
                 # Optimize path for next iteration
@@ -129,7 +129,7 @@ class PhysicsBasedModel(BaseRacingLineModel):
                 prev_lap_time = lap_time
             
         except Exception as e:
-            print(f"      ❌ Optimization error: {str(e)}")
+            print(f"      Optimization error: {str(e)}")
             # Return fallback result
             return self._calculate_single_pass_racing_line(track_points, curvature, track_width, params, friction)
         
