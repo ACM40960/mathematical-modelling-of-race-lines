@@ -259,3 +259,55 @@ Access: http://localhost:3000
 ## Contact & Credits
 - Created by Joel Thomas Chacko (24220504) and Sarosh Farhan.
 - For questions, suggestions, or contributions, please open an issue or pull request.
+
+
+
+
+
+%%{init: {"flowchart": {"htmlLabels": false, "nodeSpacing": 50, "rankSpacing": 60}} }%%
+flowchart TD
+    subgraph "UNIFIED RACING LINE MODEL"
+        A["SHARED INPUT PROCESSING
+resample_track_points()
+• compute_curvature()
+• input validation
+• calculate_track_vectors()"] --> B{"MODEL SELECTION
+model_type"}
+        
+        B -->|"basic"| C["BASIC CORE PROCESSING
+• Gaussian curvature smoothing
+• Simple geometric offsets
+• Conservative corner detection
+• Look-ahead positioning"]
+        
+        B -->|"physics"| D["PHYSICS CORE PROCESSING
+• create_curvilinear_system()
+• Physics equations (v_max = √...)
+• Iterative lap time optimization
+• Speed-dependent racing line"]
+        
+        B -->|"kapania"| E["KAPANIA CORE PROCESSING
+• Forward-backward integration
+• 3-pass speed calculation
+• Convex path optimization
+• Two-step iterations"]
+        
+        C --> F["SHARED OUTPUT PROCESSING
+• apply_boundary_constraints()
+• smooth_racing_line() - model-specific level
+• ensure closed loop
+• output formatting"]
+        D --> F
+        E --> F
+        
+        F --> G["UNIFIED RACING LINE OUTPUT"]
+    end
+
+    %% Styles
+    style A fill:#EAF2E3,stroke:#666666
+    style B fill:#e8e8e8,stroke:#666666
+    style C fill:#f0f0f0,stroke:#666666
+    style D fill:#eeeeee,stroke:#666666
+    style E fill:#f3f3f3,stroke:#666666
+    style F fill:#f0f0f0,stroke:#666666
+    style G fill:#e5e5e5,stroke:#666666
