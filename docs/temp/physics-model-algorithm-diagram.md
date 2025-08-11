@@ -167,4 +167,4 @@ if |T_new - T_old| < 0.15: converged = True
 | 🔵 **Blue** | Racing Strategy | Late apex and positioning logic |
 | 🔴 **Red** | Decision Points | Convergence and conditional checks |
 
-This high-level diagram shows the **core algorithm flow** with **proper subscript notation** and **complete mathematical documentation**! 🏎️
+This high-level diagram shows the **core algorithm flow** with **proper subscript notation** and **complete mathematical documentation**! 
