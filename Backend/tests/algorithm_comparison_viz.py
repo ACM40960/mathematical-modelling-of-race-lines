@@ -20,7 +20,11 @@ import matplotlib.pyplot as plt
 from simulation.algorithms.kapania_model import KapaniaModel
 from simulation.algorithms.physics_model import PhysicsBasedModel
 from simulation.algorithms.basic_model import BasicModel
-from simulation.optimizer import compute_curvature
+from simulation.optimizer import (
+    compute_curvature,
+    resample_track_points,
+    create_separated_racing_lines,
+)
 
 def create_algorithm_comparison():
     """Create poster visualization comparing the three racing line algorithms"""
@@ -138,17 +142,21 @@ def create_algorithm_comparison():
     ]
     
     # Convert to numpy array and ensure the track is a proper closed loop
-    track_points = np.array([[p['x'], p['y']] for p in frontend_track_data])
+    raw_track_points = np.array([[p['x'], p['y']] for p in frontend_track_data])
     
-    # Close the loop by ensuring the last point equals the first point
-    if not np.allclose(track_points[0], track_points[-1], atol=1e-3):
-        track_points = np.vstack([track_points, track_points[0]])
+    if not np.allclose(raw_track_points[0], raw_track_points[-1], atol=1e-3):
+        raw_track_points = np.vstack([raw_track_points, raw_track_points[0]])
         print(f"   ✅ Track closed: added connection from last to first point")
+    
+    # IMPORTANT: Resample the track using the same periodic spline used by the backend
+    # This removes digitization jaggies and matches the frontend/backend pipeline
+    # Use higher density to reduce discretization artifacts
+    track_points = resample_track_points(raw_track_points, num_points=min(400, max(200, len(raw_track_points))))
     curvature = compute_curvature(track_points)
     track_width = 20.0
     
     print(f"✅ Track loaded: Real Frontend Track Data")
-    print(f"   Track points: {len(frontend_track_data)}")
+    print(f"   Track points (resampled): {len(track_points)} from raw {len(frontend_track_data)}")
     print(f"   Coordinate range: X({track_points[:, 0].min():.1f}-{track_points[:, 0].max():.1f}), Y({track_points[:, 1].min():.1f}-{track_points[:, 1].max():.1f})")
     print()
     
@@ -294,16 +302,24 @@ def create_algorithm_comparison():
                         scale_factor = max_offset / offset_distance
                         line_coords[j] = track_points[j] + offset * scale_factor
             
-            # Apply smoothing to reduce noise, especially for physics model
-            from scipy.ndimage import gaussian_filter1d
+            # Apply the same backend smoothing pipeline used in production
             try:
-                # Apply gentle smoothing to make lines smoother
-                sigma = 1.0 if 'Physics' in algorithm['name'] else 0.5
-                line_coords[:, 0] = gaussian_filter1d(line_coords[:, 0], sigma=sigma, mode='wrap')
-                line_coords[:, 1] = gaussian_filter1d(line_coords[:, 1], sigma=sigma, mode='wrap')
-                print(f"     ✅ Applied smoothing (sigma={sigma})")
+                smoothed = create_separated_racing_lines(
+                    track_points, line_coords, track_width, num_cars=1
+                )[0]
+                line_coords = smoothed
+                print("     ✅ Applied backend smoothing pipeline (separated line x1)")
             except Exception as e:
-                print(f"     ⚠️  Smoothing failed: {e}")
+                print(f"     ⚠️  Smoothing pipeline failed: {e}")
+
+            # Final gentle Gaussian smoothing for display parity with frontend
+            try:
+                from scipy.ndimage import gaussian_filter1d
+                line_coords[:, 0] = gaussian_filter1d(line_coords[:, 0], sigma=0.5, mode='wrap')
+                line_coords[:, 1] = gaussian_filter1d(line_coords[:, 1], sigma=0.5, mode='wrap')
+                print("     ✅ Applied final display smoothing (sigma=0.5)")
+            except Exception as e:
+                print(f"     ⚠️  Final display smoothing failed: {e}")
             
             # Ensure the racing line is also a closed loop
             if not np.allclose(line_coords[0], line_coords[-1], atol=1e-3):
