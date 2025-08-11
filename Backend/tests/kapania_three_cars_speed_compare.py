@@ -3,6 +3,11 @@
 Kapania: Compare final velocity profiles for three car parameter sets on the same path.
 
 Output: Backend/tests/poster_output/kapania_three_cars_speed_compare.(png|pdf)
+
+explaintion:
+Forward pass assumes you can keep accelerating until you hit the local cornering limit v_ss(s). It doesn’t yet account for the need to brake for a tighter corner coming up.
+Backward pass enforces braking feasibility for every upcoming corner. It reduces speeds upstream so that deceleration over the available distance Δs with effective braking force is physically possible. This typically lowers peaks and creates earlier slow‑downs, producing the final feasible profile.
+
 """
 import os
 import numpy as np
@@ -36,7 +41,7 @@ def calculate_curvature_from_points(points: np.ndarray) -> np.ndarray:
     return kappa
 
 
-def compute_final_speed(track_points: np.ndarray, car_params: dict, friction: float = 1.0):
+def compute_speed_profiles(track_points: np.ndarray, car_params: dict, friction: float = 1.0):
     model = KapaniaModel()
     params = model._extract_kapania_parameters(car_params)
 
@@ -101,7 +106,7 @@ def compute_final_speed(track_points: np.ndarray, car_params: dict, friction: fl
             v_fin[i] = min(np.sqrt(max(v2, min_corner_speed ** 2)), v_fwd[i])
 
     s = np.cumsum(distances)
-    return s, v_fin
+    return s, v_fwd, v_fin
 
 
 def main():
@@ -251,25 +256,31 @@ def main():
         }, '#00AA00'),
     ]
 
-    fig, ax = plt.subplots(1, 1, figsize=(10, 5))
+    # Larger figure to reduce clutter
+    fig, ax = plt.subplots(1, 1, figsize=(12, 6))
     fig.patch.set_facecolor('white')
 
     for label, params, color in car_setups:
-        s, v = compute_final_speed(track_points, params, friction=1.0)
-        ax.plot(s, v, color=color, linewidth=2.0, label=label)
+        s, v_fwd, v_fin = compute_speed_profiles(track_points, params, friction=1.0)
+        # Final profile after backward pass (solid)
+        ax.plot(s, v_fin, color=color, linewidth=2.2, label=f"{label} (Backward)")
+        # Forward pass profile (dashed)
+        ax.plot(s, v_fwd, color=color, linewidth=1.6, linestyle='--', label=f"{label} (Forward)")
 
     ax.set_xlabel('Distance Along Path (m)')
     ax.set_ylabel('Velocity (m/s)')
     ax.grid(True, linestyle=':', linewidth=0.6)
-    ax.legend(loc='upper left', frameon=True)
+    # Place legend outside the axes on the right
+    legend = ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5), frameon=True)
+    plt.subplots_adjust(right=0.78)
     plt.tight_layout()
 
     out_dir = os.path.join(os.path.dirname(__file__), 'poster_output')
     os.makedirs(out_dir, exist_ok=True)
     png = os.path.join(out_dir, 'kapania_three_cars_speed_compare.png')
     pdf = os.path.join(out_dir, 'kapania_three_cars_speed_compare.pdf')
-    plt.savefig(png, dpi=300, bbox_inches='tight', facecolor='white')
-    plt.savefig(pdf, bbox_inches='tight', facecolor='white')
+    plt.savefig(png, dpi=300, bbox_inches='tight', facecolor='white', bbox_extra_artists=[legend])
+    plt.savefig(pdf, bbox_inches='tight', facecolor='white', bbox_extra_artists=[legend])
     print(f"✅ Saved: {png}\n✅ Saved: {pdf}")
 
 
