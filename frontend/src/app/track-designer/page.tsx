@@ -193,9 +193,6 @@ export default function TrackDesigner() {
       setIsLoadingPreset(false);
       console.log("Preset track loaded successfully:", trackPreset.name);
     }, 100);
-
-    // Don't clear simulation results when switching tracks
-    // setSimulationResults([]); // REMOVED THIS LINE
   };
 
   // Handle custom track selection from Header

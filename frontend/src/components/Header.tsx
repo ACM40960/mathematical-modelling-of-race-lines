@@ -199,7 +199,8 @@ export default function Header({
             </div>
           </div>
 
-          {/* This is for future purposes hence commented out */}
+          {/* This is for future purposes hence commented out 
+          DO NOT REMOVE THIS COMMENT */}
           {/* Analytics Link
           <Link
             href="/parameter-analysis"
