@@ -1,26 +1,39 @@
-# F1 Racing Lines - Next.js + React + Tailwind CSS
+# F1 Racing Line Designer - Frontend Application
 
-This project is a modern web application for drawing, analyzing, and visualizing racing lines on F1 tracks. It is built with Next.js, React, and Tailwind CSS, and features an interactive canvas for drawing tracks, a control panel for track parameters, and a modular, extensible architecture.
+A sophisticated web application for designing, analyzing, and simulating racing lines on Formula 1 tracks. Built with Next.js 15, React 19, TypeScript, and Tailwind CSS, featuring advanced racing line optimization algorithms and interactive track design capabilities.
 
-## Features
-- **Interactive Canvas:** Draw racing lines with your mouse or pen. The app computes and displays the track boundaries based on a user-defined width.
-- **Track Control Panel:** Adjust track width, discretization step, and (future) see curvature profiles and other analytics.
-- **Responsive Layout:** Clean, modern UI with a header, main canvas area, and a control panel.
-- **Fully Commented Code:** All components are well-documented for easy onboarding and collaboration.
+## Overview
 
----
+This frontend application provides a comprehensive platform for F1 racing line analysis, featuring:
+
+- **Interactive Track Design**: Draw custom racing lines with real-time track boundary computation
+- **Advanced Car Physics**: Configure detailed vehicle parameters for realistic simulation
+- **Multiple Racing Models**: Support for physics-based and Kapania two-step algorithms
+- **Track Presets**: Pre-built F1 circuit templates with real-world specifications
+- **Data Persistence**: Local storage for tracks, cars, and simulation results
+
+## Technology Stack
+
+- **Framework**: Next.js 15.3.4 with App Router
+- **UI Library**: React 19.0.0
+- **Language**: TypeScript 5
+- **Styling**: Tailwind CSS 4.1.10
+- **Graphics**: Paper.js for advanced canvas operations
+- **Animations**: Anime.js for smooth transitions
+- **Development**: ESLint, Turbopack for fast development
 
 ## Prerequisites
-- **Node.js** (v18 or higher recommended)
-- **npm** (v8 or higher)
 
----
+- **Node.js**: Version 18 or higher
+- **npm**: Version 8 or higher
+- **Backend API**: Running instance of the racing line optimization backend
 
-## Getting Started
+## Installation and Setup
 
-### 1. Clone the Repository
+### 1. Clone and Navigate
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/ACM40960/mathematical-modelling-of-race-lines.git
+
 cd project-maths-modelling-project-sarosh-farhan/frontend
 ```
 
@@ -29,74 +42,174 @@ cd project-maths-modelling-project-sarosh-farhan/frontend
 npm install
 ```
 
-### 3. Run the Development Server
+### 3. Start Development Server
 ```bash
 npm run dev
 ```
 
-- Open [http://localhost:3000](http://localhost:3000) in your browser to see the app.
-- The app will automatically reload as you edit files.
+The application will be available at [http://localhost:3000](http://localhost:3000).
 
----
+## Project Architecture
 
-## Project Structure
+### Directory Structure
 
 ```
 frontend/
-├── public/                # Static assets (e.g., F1 logo)
+├── public/                    # Static assets
+│   └── F1-logo.svg           # Application logo
 ├── src/
-│   ├── app/               # Next.js app directory (pages, layout, globals)
-│   ├── components/        # Reusable React components
-│   │   ├── CanvasDraw.tsx # Main drawing canvas (core logic)
-│   │   └── TrackControl.tsx # Track control panel (inputs, analytics)
-│   └── ...
-├── package.json           # Project metadata and scripts
-├── postcss.config.mjs     # PostCSS configuration
-├── tsconfig.json          # TypeScript configuration
-└── README.md              # This file
+│   ├── app/                   # Next.js App Router pages
+│   │   ├── layout.tsx         # Root layout component
+│   │   ├── page.tsx           # Landing page with loading animation
+│   │   ├── globals.css        # Global styles
+│   │   └── track-designer/    # Main application page
+│   │       └── page.tsx       # Track designer interface
+│   ├── components/            # React components
+│   │   ├── Header.tsx         # Application header with navigation
+│   │   ├── CanvasDrawPaper.tsx # Main drawing canvas with Paper.js
+│   │   ├── TrackControl.tsx   # Track parameter controls
+│   │   ├── CarControl.tsx     # Vehicle configuration interface
+│   ├── lib/                   # Utility libraries
+│   │   └── dataStore.ts       # Local storage management
+│   ├── types/                 # TypeScript type definitions
+│   │   └── index.ts           # Core type interfaces
+│   └── services/              # API service layer (future)
+├── package.json               # Dependencies and scripts
+├── tsconfig.json              # TypeScript configuration
+├── tailwind.config.js         # Tailwind CSS configuration
+└── README.md                  # This documentation
 ```
 
----
+### Core Components
 
-## How It Works
+#### CanvasDrawPaper.tsx
+The primary drawing interface built with Paper.js, providing:
+- Interactive racing line drawing with mouse/touch input
+- Real-time track boundary computation using normal vector methods
+- Support for multiple drawing layers and visualization modes
+- Integration with simulation results display
 
-- **CanvasDraw.tsx:**
-  - Lets users draw a racing line with the mouse.
-  - Computes and displays the track boundaries (ribbon) using a normal vector method.
-  - The width of the track can be adjusted live from the control panel.
-  - All code is commented for clarity and future extension.
+#### CarControl.tsx
+Comprehensive vehicle configuration interface featuring:
+- Physical parameters (mass, dimensions, steering limits)
+- Aerodynamic properties (drag coefficient, downforce)
+- Tire and suspension characteristics
+- Performance limits (speed, acceleration, braking)
+- Visual customization (team colors, livery)
 
-- **TrackControl.tsx:**
-  - Lets users set the track width, discretization step, and (future) track length.
-  - Will display analytics like curvature profile in future versions.
+#### TrackControl.tsx
+Track parameter management including:
+- Track width and friction coefficient adjustment
+- Discretization step control for simulation accuracy
+- Track length calculation and display
+- Preset track selection and loading
 
-- **State Management:**
-  - The main page (`src/app/page.tsx`) holds the shared state for the drawn lines and track width, passing them as props to the relevant components.
+#### Header.tsx
+Application navigation and branding with:
+- F1 branding and logo display
+- Navigation between application sections
+- User session management
+- Application state indicators
 
----
+### Data Management
 
-## Customization & Contribution
+#### TypeScript Interfaces
+The application uses comprehensive type definitions for:
 
-- **To add new features:**
-  - Create new components in `src/components/` and import them in `src/app/page.tsx`.
-  - Follow the commenting style for clarity.
-- **To change the drawing logic:**
-  - Edit `CanvasDraw.tsx`. You can swap out the normal vector method for a more advanced offsetting library if needed.
-- **To style the app:**
-  - Use Tailwind CSS classes in your components.
+- **Car**: Complete vehicle specification with physics parameters
+- **Track**: Track geometry and properties
+- **Point**: 2D coordinate representation
+- **SimulationResult**: Optimization algorithm outputs
+- **TrackPreset**: Pre-built circuit templates
 
----
+#### Local Storage
+Persistent data management through `dataStore.ts`:
+- Track and car configurations
+- Simulation results and settings
+- User preferences and model selections
+- Cross-tab synchronization support
 
-## Troubleshooting
-- If you see errors about Node.js version, upgrade to the latest LTS version.
-- If the canvas does not resize or boundaries look odd, try drawing longer, smoother lines and adjust the track width.
----
+## Key Features
+
+### Track Design
+- **Freehand Drawing**: Intuitive mouse/touch input for racing line creation
+- **Track Boundaries**: Automatic computation of track edges based on centerline
+- **Preset Tracks**: Library of real F1 circuits with accurate specifications
+- **Track Analysis**: Curvature profiles and geometric analysis
+
+### Vehicle Configuration
+- **Physics Parameters**: Mass, inertia, cornering stiffness
+- **Aerodynamics**: Drag coefficient, downforce, frontal area
+- **Performance Limits**: Maximum speeds, acceleration, braking
+- **Visual Customization**: Team colors and livery options
+
+### Simulation and Analysis
+- **Multiple Algorithms**: Physics-based and Kapania two-step models
+- **Real-time Optimization**: Backend integration for racing line computation
+
+### User Experience
+- **Loading States**: Smooth transitions and progress indicators
+- **Error Handling**: Graceful degradation and user feedback
+
+## Development Workflow
+
+### Available Scripts
+```bash
+npm run dev          # Start development server with Turbopack
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint for code quality
+```
+
+### Code Quality
+- **TypeScript**: Strict type checking for all components
+- **ESLint**: Code style and quality enforcement
+- **Component Structure**: Modular, reusable component architecture
+- **Documentation**: Comprehensive inline comments and type definitions
+
+## API Integration
+
+The frontend integrates with a Python backend providing:
+- Racing line optimization algorithms
+- Physics-based simulation models
+- Track data management
+
+### Backend Communication
+- RESTful API endpoints for simulation requests
+- Real-time data exchange for optimization results
+- Error handling and retry mechanisms
+- Progress tracking for long-running simulations
+
+## Performance Considerations
+
+- **Dynamic Imports**: Heavy components loaded on-demand
+- **Canvas Optimization**: Efficient Paper.js rendering
+- **State Management**: Optimized React state updates
+- **Storage Efficiency**: Compressed local storage usage
+
+## Browser Compatibility
+
+- **Modern Browsers**: Chrome, Firefox, Safari, Edge (latest versions)
+- **Canvas Support**: Full HTML5 Canvas API support required
+- **Local Storage**: Browser local storage for data persistence
+- **Touch Support**: Mobile and tablet drawing capabilities
+
+## Contributing
+
+### Code Structure
+- Use functional components with React hooks
+- Implement proper error boundaries
+- Follow Tailwind CSS utility-first approach
+- Maintain consistent file naming conventions
 
 ## License
-This project is for educational and research purposes. See LICENSE file for details (if present).
 
----
+This project is developed for educational and research purposes in mathematical modeling and racing line optimization.
 
-## Contact & Credits
-- Created by Sarosh Farhan and Joel Chacko.
-- For questions, suggestions, or contributions, please open an issue or pull request.
+## Contact
+
+- **Developers**: Sarosh Farhan, Joel Thomas Chacko
+- **Project**: Mathematical Modelling of Race Lines
+- **Institution**: University College Dublin
+
+For technical support, feature requests, or contributions, please refer to the project repository issues and documentation.
