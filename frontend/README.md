@@ -34,7 +34,7 @@ This frontend application provides a comprehensive platform for F1 racing line a
 ```bash
 git clone https://github.com/ACM40960/mathematical-modelling-of-race-lines.git
 
-cd project-maths-modelling-project-sarosh-farhan/frontend
+cd mathematical-modelling-of-race-lines/frontend
 ```
 
 ### 2. Install Dependencies
