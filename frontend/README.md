@@ -135,7 +135,6 @@ Persistent data management through `dataStore.ts`:
 - **Freehand Drawing**: Intuitive mouse/touch input for racing line creation
 - **Track Boundaries**: Automatic computation of track edges based on centerline
 - **Preset Tracks**: Library of real F1 circuits with accurate specifications
-- **Track Analysis**: Curvature profiles and geometric analysis
 
 ### Vehicle Configuration
 - **Physics Parameters**: Mass, inertia, cornering stiffness
@@ -144,8 +143,8 @@ Persistent data management through `dataStore.ts`:
 - **Visual Customization**: Team colors and livery options
 
 ### Simulation and Analysis
-- **Multiple Algorithms**: Physics-based and Kapania two-step models
-- **Real-time Optimization**: Backend integration for racing line computation
+- **Multiple Algorithms**: Basic, Physics-based and Kapania two-step models
+- **Real-time Optimization**: Backend integration for racing line computation which computes race lines in real time.
 
 ### User Experience
 - **Loading States**: Smooth transitions and progress indicators
