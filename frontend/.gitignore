@@ -37,7 +37,7 @@ coverage/
 /src/components/archive/
 /src/components/ParameterAnalysis.tsx
 /src/components/ParameterCorrelationAnalysis.tsx
-/src/app/parameter-analysis/*
+/src/app/parameter-analysis/
 
 # Dependency directories
 node_modules/
