@@ -567,44 +567,6 @@ const CanvasDrawPaper: React.FC<CanvasDrawPaperProps> = ({
     );
   };
 
-  // TEMPORARILY DISABLED - Draw lines when they change (but only if not already drawn by handleMouseUp)
-  // useEffect(() => {
-  //   if (!paperLoaded || !paper?.project) return;
-
-  //   // Check if we already have track elements (from handleMouseUp)
-  //   const existingTrackElements = paper.project.activeLayer.children.filter(child =>
-  //     child.data && (child.data.type === 'track' || child.data.type === 'start_finish')
-  //   );
-
-  //   // If we have the right number of elements for the current lines, don't redraw
-  //   if (existingTrackElements.length > 0 && lines.length > 0) {
-  //     console.log('[Track Drawing useEffect] Track already exists, skipping redraw');
-  //     return;
-  //   }
-
-  //   // Clear existing track elements from the main layer only (preserve car layer)
-  //   if (paper.project.activeLayer) {
-  //     // Remove only track-related elements, not car elements
-  //     const itemsToRemove = paper.project.activeLayer.children.filter(child =>
-  //       child.data && (child.data.type === 'track' || child.data.type === 'start_finish')
-  //     );
-  //     itemsToRemove.forEach(item => item.remove());
-  //   }
-
-  //   // Draw all lines
-  //   lines.forEach((line, index) => {
-  //     if (!Array.isArray(line)) {
-  //       console.warn(`[Track Drawing] Invalid line at index ${index}`);
-  //       return;
-  //     }
-  //     if (line.length < 2) {
-  //       console.warn(`[Track Drawing] Insufficient points at index ${index} (${line.length} points)`);
-  //       return;
-  //     }
-  //     drawTrackWithBoundaries(line, false, false);
-  //   });
-  // }, [lines, paperLoaded, trackWidth]);
-
   const initializePaperTool = () => {
     if (!paper.project) return;
 

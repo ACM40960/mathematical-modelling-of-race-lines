@@ -32,8 +32,12 @@ pids
 build/
 dist/
 
-# Coverage directory used by tools like istanbul
+# archive directory and directories not in use
 coverage/
+/src/components/archive/
+/src/components/ParameterAnalysis.tsx
+/src/components/ParameterCorrelationAnalysis.tsx
+/src/app/parameter-analysis/
 
 # Dependency directories
 node_modules/
