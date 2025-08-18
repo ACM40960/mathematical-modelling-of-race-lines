@@ -34,10 +34,10 @@ dist/
 
 # archive directory and directories not in use
 coverage/
-components/archive/
-components/ParameterAnalysis.tsx
-components/ParameterCorrelationAnalysis.tsx
-app/parameter-analysis/
+/src/components/archive/
+/src/components/ParameterAnalysis.tsx
+/src/components/ParameterCorrelationAnalysis.tsx
+/src/app/parameter-analysis/*
 
 # Dependency directories
 node_modules/
