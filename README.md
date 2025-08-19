@@ -210,8 +210,8 @@ project-maths-modelling-project-sarosh-farhan/
 
 #### 1. Clone Repository
 ```bash
-git clone https://github.com/ACM40960/project-maths-modelling-project-sarosh-farhan.git
-cd project-maths-modelling-project-sarosh-farhan
+git clone https://github.com/ACM40960/mathematical-modelling-of-race-lines.git
+cd mathematical-modelling-of-race-lines
 ```
 
 #### 2. Database Setup (macOS)
@@ -424,7 +424,7 @@ This project is developed for educational and research purposes in mathematical 
 
 ## Contact
 
-- **Developers**: Joel Thomas Chacko (24220504), Sarosh Farhan
+- **Developers**: [Joel Thomas Chacko (24220504)](https://github.com/joelkariyalil), [Sarosh Farhan (24210969)](https://github.com/saroshfarhan)
 - **Project**: Mathematical Modelling of Race Lines
 - **Institution**: University College Dublin
 - **Course**: ACM40960 - Mathematical Modelling
