@@ -1,1 +1,0 @@
-# Tests package for F1 Racing Lines project
