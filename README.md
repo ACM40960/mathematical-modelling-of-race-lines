@@ -28,8 +28,6 @@ A research-grade mathematical modelling platform implementing three mathematical
   - [Installation Notes](#installation-notes)
 - [System Architecture](#system-architecture)
 - [Results](#results)
-- [Key Metrics](#key-metrics)
-- [Research Documentation](#research-documentation)
 - [Project Poster](#project-poster)
 - [Future Work](#future-work)
 - [Contributing](#contributing)
@@ -333,24 +331,6 @@ graph LR
 - **Basic Model**: Smooth, conservative lines ideal for understanding racing concepts
 - **Physics Model**: Aggressive optimization with realistic F1 car dynamics
 - **Kapania Model**: Maximum precision with guaranteed convergence properties
-
-## Key Metrics
-
-### **Technical Performance**
-- **Response Time**: < 5 seconds for complete optimization
-- **Accuracy**: Research-grade precision with physics validation
-- **Scalability**: Supports tracks from 500m to 7km length
-- **Reliability**: 99%+ successful optimization rate
-
-### **Educational Impact**
-- **Accessibility**: Interactive interface requiring no programming knowledge
-- **Comprehensiveness**: Three distinct mathematical approaches
-- **Visualization**: Real-time feedback and professional racing line appearance
-
-### **Research Contribution**
-- **Implementation**: First open-source implementation of Kapania algorithm
-- **Validation**: Comparison framework for racing line research
-- **Documentation**: Comprehensive mathematical and implementation details
 
 
 ## Project Poster
