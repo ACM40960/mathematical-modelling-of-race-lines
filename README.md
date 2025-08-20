@@ -10,7 +10,7 @@
 
 </div>
 
-A research-grade racing line optimization platform implementing three mathematical models for Formula 1 trajectory planning. This project bridges the gap between theoretical racing line algorithms and practical real-time implementation, featuring physics-based simulation, interactive track design, and comprehensive performance analysis.
+A research-grade mathematical modelling platform implementing three mathematical models for Formula 1 race lines simulation. This project bridges the gap between theoretical racing line algorithms and practical real-time implementation, featuring physics-based simulation, interactive track design with auto-complete features, and performance analysis.
 
 
 ## Table of Contents
@@ -28,8 +28,6 @@ A research-grade racing line optimization platform implementing three mathematic
   - [Installation Notes](#installation-notes)
 - [System Architecture](#system-architecture)
 - [Results](#results)
-- [Key Metrics](#key-metrics)
-- [Research Documentation](#research-documentation)
 - [Project Poster](#project-poster)
 - [Future Work](#future-work)
 - [Contributing](#contributing)
@@ -38,9 +36,9 @@ A research-grade racing line optimization platform implementing three mathematic
 
 ## Abstract
 
-Racing line optimization is a critical aspect of motorsport performance, determining the fastest path around a circuit. This project implements three distinct mathematical approaches to racing line calculation: a conservative geometric model, a physics-based lap time optimization algorithm, and the research-grade Kapania two-step iterative method. 
+Racing line optimization is a critical aspect of motorsport performance, determining the fastest path around a circuit. This project implements three distinct mathematical approaches to racing line calculation: a conservative geometric model, a physics-based lap time optimization algorithm, and the research-grade Kapania two-step iterative method which implemenets a late-apex racing strategy.
 
-The platform provides real-time visualization, interactive track design, and comprehensive performance analysis, making advanced racing line theory accessible for both educational and research purposes.
+The platform provides real-time visualization, interactive track design, and comprehensive performance analysis.
 
 ## Project Description
 
@@ -52,11 +50,10 @@ Optimal racing line calculation involves complex mathematical optimization consi
 
 This project addresses the challenge by:
 
-- **Multiple Algorithm Implementation**: Three distinct approaches from basic geometry to research-grade optimization
-- **Real-Time Computation**: FastAPI backend enabling interactive frontend experiences  
+- **Multiple Algorithm Implementation**: Three distinct approaches from basic geometry to Stanford University's Kapania two-step algorithm for Race Lines.
+- **Real-Time Computation**: FastAPI backend enabling dynamic simulation from the model-engine.
 - **Physics-Based Modeling**: Comprehensive F1 car dynamics including aerodynamics and tire forces
 - **Interactive Visualization**: Paper.js canvas for intuitive track design and result analysis
-- **Research Integration**: Implementation of Stanford University's Kapania two-step algorithm
 
 ## Key Components
 
@@ -102,13 +99,6 @@ This project addresses the challenge by:
 - **Performance**: Slower computation (~2-5s per track)
 - **Best For**: Research applications, maximum precision
 
-## Project Goals
-
-1. **Educational Platform**: Make advanced racing line theory accessible and interactive
-2. **Research Tool**: Provide implementation of cutting-edge optimization algorithms
-3. **Performance Analysis**: Enable comprehensive comparison between different approaches
-4. **Real-World Application**: Bridge theoretical research with practical implementation
-5. **Open Science**: Share methodologies and results for educational advancement
 
 ## Supported Features
 
@@ -116,13 +106,11 @@ This project addresses the challenge by:
 - Custom track drawing with Paper.js canvas
 - Real-time curvature computation and analysis
 - Track boundary generation from centerline
-- Preset F1 circuits (11+ authentic tracks)
 
 ### **Vehicle Configuration**
 - Physical parameters (mass, dimensions, inertia)
 - Aerodynamic properties (drag, downforce coefficients)
 - Performance limits (power, acceleration, braking)
-- Tire and suspension characteristics
 
 ### **Optimization Algorithms**
 - Three distinct mathematical approaches
@@ -324,13 +312,19 @@ graph LR
 
 ## Results
 
-### Performance Comparison
+### Video Demonstrations
 
-| Model | Track Usage | Computation Time | Lap Time Quality | Best Use Case |
-|-------|-------------|------------------|------------------|---------------|
-| **Basic** | 60% | 0.1-0.5s | Good baseline | Education, Learning |
-| **Physics** | 85% | 1-3s | Excellent | Racing applications |
-| **Kapania** | 85% | 2-5s | Research-grade | Academic research |
+#### Basic Model
+[![Basic Model Demo](https://img.youtube.com/vi/w5fezmAkNis/maxresdefault.jpg)](https://www.youtube.com/watch?v=w5fezmAkNis)
+*Click to watch the Basic Model demonstration*
+
+#### Physics Based Model  
+[![Physics Based Model Demo](https://img.youtube.com/vi/0AkqP_NkHPo/maxresdefault.jpg)](https://www.youtube.com/watch?v=0AkqP_NkHPo)
+*Click to watch the Physics Based Model demonstration*
+
+#### Two Step Algorithm
+[![Two Step Algorithm Demo](https://img.youtube.com/vi/7THtqOmqt1w/maxresdefault.jpg)](https://www.youtube.com/watch?v=7THtqOmqt1w)
+*Click to watch the Two Step Algorithm demonstration*
 
 ### Algorithm Characteristics
 
@@ -338,36 +332,6 @@ graph LR
 - **Physics Model**: Aggressive optimization with realistic F1 car dynamics
 - **Kapania Model**: Maximum precision with guaranteed convergence properties
 
-## Key Metrics
-
-### **Technical Performance**
-- **Response Time**: < 5 seconds for complete optimization
-- **Accuracy**: Research-grade precision with physics validation
-- **Scalability**: Supports tracks from 500m to 7km length
-- **Reliability**: 99%+ successful optimization rate
-
-### **Educational Impact**
-- **Accessibility**: Interactive interface requiring no programming knowledge
-- **Comprehensiveness**: Three distinct mathematical approaches
-- **Visualization**: Real-time feedback and professional racing line appearance
-
-### **Research Contribution**
-- **Implementation**: First open-source implementation of Kapania algorithm
-- **Validation**: Comparison framework for racing line research
-- **Documentation**: Comprehensive mathematical and implementation details
-
-## Research Documentation
-
-### Academic Papers
-- **Poster Presentation**: Complete research methodology and results analysis
-- **Model Documentation**: Mathematical foundations for each algorithm
-- **Demo Scripts**: Component-wise implementation examples
-
-### Generated Visualizations
-- Corner speed calculation demonstrations
-- Straight-line aerodynamic analysis
-- Late apex strategy implementation
-- Complete physics integration examples
 
 ## Project Poster
 
@@ -401,9 +365,8 @@ Additional poster materials:
 We welcome contributions from researchers, developers, and motorsport enthusiasts!
 
 ### **Areas for Contribution**
-- Algorithm optimization and new model development
-- Frontend user experience improvements
-- Documentation and educational content
+- Addition of other well known racing strategies. (What's implemented now is the late-apex strategy)
+- Frontend user experience improvements - Like Store tracks using DBs
 - Testing and validation with real-world data
 
 ### **Getting Started**
