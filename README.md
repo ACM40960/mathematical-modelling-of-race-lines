@@ -314,23 +314,19 @@ graph LR
 
 ## Results
 
+### Video Demonstrations
 
-<div align="center">
+#### Basic Model
+[![Basic Model Demo](https://img.youtube.com/vi/w5fezmAkNis/maxresdefault.jpg)](https://www.youtube.com/watch?v=w5fezmAkNis)
+*Click to watch the Basic Model demonstration*
 
-### Basic Model
+#### Physics Based Model  
+[![Physics Based Model Demo](https://img.youtube.com/vi/0AkqP_NkHPo/maxresdefault.jpg)](https://www.youtube.com/watch?v=0AkqP_NkHPo)
+*Click to watch the Physics Based Model demonstration*
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/w5fezmAkNis?si=KiS0Hxa-d11SU-Rb" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-
-### Physcis Based Model
-
-<iframe width="560" height="315" src="https://www.youtube.com/embed/0AkqP_NkHPo?si=utmtBreH4L68JjHw" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-
-
-### 2 Step Algorithm
-
-<iframe width="560" height="315" src="https://www.youtube.com/embed/7THtqOmqt1w?si=eFa3T0cJdSa0cKuZ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-
-</div>
+#### Two Step Algorithm
+[![Two Step Algorithm Demo](https://img.youtube.com/vi/7THtqOmqt1w/maxresdefault.jpg)](https://www.youtube.com/watch?v=7THtqOmqt1w)
+*Click to watch the Two Step Algorithm demonstration*
 
 ### Algorithm Characteristics
 
