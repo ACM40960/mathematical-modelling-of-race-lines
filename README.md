@@ -319,15 +319,16 @@ graph LR
 
 ### Basic Model
 
-<video src="./docs/demo/videos/Basic_model_record.mov" controls preload height="320" width = "480"></video>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/w5fezmAkNis?si=KiS0Hxa-d11SU-Rb" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### Physcis Based Model
 
-<video src="./docs/demo/videos/Physics_based_record.mov" controls preload height="320" width = "480"></video>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/0AkqP_NkHPo?si=utmtBreH4L68JjHw" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 
 ### 2 Step Algorithm
 
-<video src="./docs/demo/videos/2-step-model-record.mov" controls preload height="320" width = "480"></video>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/7THtqOmqt1w?si=eFa3T0cJdSa0cKuZ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 </div>
 
