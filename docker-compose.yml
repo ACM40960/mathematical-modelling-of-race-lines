@@ -1,0 +1,64 @@
+services:
+  # PostgreSQL Database
+  database:
+    image: postgres:15-alpine
+    container_name: f1_racing_db
+    environment:
+      POSTGRES_DB: f1_tracks_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - racing_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: f1-racing-line/backend:latest
+    container_name: f1_racing_backend
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@database:5432/f1_tracks_db
+      PYTHONPATH: /app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - database
+    networks:
+      - racing_network
+    restart: unless-stopped
+
+  # Frontend Application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: f1-racing-line/frontend:latest
+    container_name: f1_racing_frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - racing_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  racing_network:
+    driver: bridge
