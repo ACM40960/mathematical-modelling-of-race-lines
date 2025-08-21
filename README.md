@@ -194,7 +194,13 @@ mathematical-modelling-of-race-lines/
 - **npm**: Version 8 or higher
 - **Git**: For repository cloning
 
-### Steps for Installation
+### Installation and Setup (Using Docker)
+
+```bash
+docker-compose up
+```
+
+### Installation and Setup (Manual Installation)
 
 #### 1. Clone Repository
 ```bash
