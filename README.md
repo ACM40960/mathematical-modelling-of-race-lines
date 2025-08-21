@@ -127,7 +127,7 @@ This project addresses the challenge by:
 ## Project Structure
 
 ```
-project-maths-modelling-project-sarosh-farhan/
+mathematical-modelling-of-race-lines/
 ├── backend/                            # FastAPI Optimization Engine
 │   ├── data/
 │   │   └── track_data.py               # 11+ F1 circuit definitions

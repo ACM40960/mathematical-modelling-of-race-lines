@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "build:docker": "NEXT_TELEMETRY_DISABLED=1 NODE_ENV=production next build",
     "start": "next start",
     "lint": "next lint"
   },
@@ -19,19 +20,17 @@
     "postcss": "^8.5.6",
     "react": "^19.0.0",
     "react-chartjs-2": "^5.3.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "@tailwindcss/postcss": "^4.1.10",
+    "tailwindcss": "^4.1.10",
+    "typescript": "^5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4.1.10",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "canvas": "^3.1.2",
     "eslint": "^9",
-    "eslint-config-next": "15.3.4",
-    "jsdom": "^26.1.0",
-    "tailwindcss": "^4.1.10",
-    "typescript": "^5"
+    "eslint-config-next": "15.3.4"
   }
 }
