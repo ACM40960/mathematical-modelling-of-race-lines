@@ -28,7 +28,13 @@ This frontend application provides a comprehensive platform for F1 racing line a
 - **npm**: Version 8 or higher
 - **Backend API**: Running instance of the racing line optimization backend
 
-## Installation and Setup
+## Installation and Setup (Using Docker)
+
+```bash
+docker-compose up
+```
+
+## Installation and Setup (Manual Installation)
 
 ### 1. Clone and Navigate
 ```bash
